@@ -13,7 +13,8 @@ terminal.Invalidate(); // Force full redraw next frame
 
 MiniTui runs on the terminal's alternate screen, so your shell's screen and scrollback are left
 untouched. The terminal is restored on normal exit, Ctrl+C, unhandled exceptions, and
-SIGTERM/SIGHUP. Ctrl+C is delivered as a key and quits `App.Run`. An app started from
+SIGTERM/SIGHUP; `App.OnQuitting` runs first, so an app can save (see
+[App](app-and-helpers.md)). Ctrl+C is delivered as a key and quits `App.Run`. An app started from
 inside another app shares its terminal, and the outer app redraws itself when the inner one exits,
 so no `Invalidate()` is needed.
 

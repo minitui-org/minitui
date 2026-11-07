@@ -55,7 +55,7 @@ public partial class App
         Overlays = new OverlayStack(this);
         Keys = new KeyMap()
             .Add("?", "Help", Overlays.ShowHelp)
-            .Add("ctrl+c", "Quit", Quit, showInHints: false);
+            .Add("ctrl+c", "Quit", RequestQuit, showInHints: false);
     }
 
     /// <summary>

@@ -8,7 +8,8 @@ A minimal, immediate-mode TUI (Text User Interface) framework for .NET, inspired
 - **Correct text:** display-width measuring for CJK and emoji, and no escape-sequence injection from data.
 - **Async-first:** HTTP calls never block the UI; results come back on the UI thread.
 - **Scales up:** screens, components, focus scopes, overlays and scoped key bindings for larger tools.
-- **Safe terminal:** restored on exit, Ctrl+C, crashes, SIGTERM/SIGHUP and window close.
+- **Safe terminal:** restored on exit, Ctrl+C, crashes, SIGTERM/SIGHUP and window close, with a chance to save
+  unsaved work first.
 
 ## Install
 

@@ -23,6 +23,12 @@ internal static class TerminalSession
     /// </summary>
     public static event Action? Resized;
 
+    /// <summary>
+    /// Called on the signal thread for SIGHUP and SIGTERM while a console session is active, before the terminal is
+    /// restored and the process ends; it may block for a while (1.x spec §25.3).
+    /// </summary>
+    internal static Action<QuitReason>? Ending { get; set; }
+
     /// <summary>Raise <see cref="Resized"/>; for input sources that see size changes.</summary>
     internal static void RaiseResized() => Resized?.Invoke();
 
@@ -185,9 +191,9 @@ internal static class TerminalSession
         {
             _console = true;
 
-            // The handlers restore the terminal and let termination proceed
-            foreach (var signal in new[] { PosixSignal.SIGTERM, PosixSignal.SIGHUP })
-                TryRegister(_registrations, signal, _ => Restore());
+            // The handlers let the apps save, restore the terminal and let termination proceed
+            TryRegister(_registrations, PosixSignal.SIGTERM, _ => End(QuitReason.Terminated));
+            TryRegister(_registrations, PosixSignal.SIGHUP, _ => End(QuitReason.Hangup));
             _quitRegistration = Register(PosixSignal.SIGQUIT, _ => Restore());
             if (!OperatingSystem.IsWindows())
             {
@@ -199,6 +205,20 @@ internal static class TerminalSession
             _onUnhandledException = (_, _) => Restore();
             AppDomain.CurrentDomain.ProcessExit += _onProcessExit;
             AppDomain.CurrentDomain.UnhandledException += _onUnhandledException;
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1031:Do not catch general exception types",
+            Justification = "The terminal must be restored and the process allowed to end whatever the apps did.")]
+        private void End(QuitReason reason)
+        {
+            try
+            {
+                Ending?.Invoke(reason);
+            }
+            catch (Exception)
+            {
+            }
+            Restore();
         }
 
         private void Restore()

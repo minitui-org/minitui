@@ -16,6 +16,7 @@ internal static unsafe partial class UnixTerminal
     private const int TcsaNow = 0;
     private const short PollIn = 0x1;
     private const int Eintr = 4;
+    private const int Eio = 5;
     private const int SigTstpLinux = 20;
     private const int SigTstpMacOS = 18;
 
@@ -36,6 +37,16 @@ internal static unsafe partial class UnixTerminal
     public static bool IsSupported =>
         (OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64 or Architecture.Arm)
         || (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture is Architecture.X64 or Architecture.Arm64);
+
+    /// <summary>
+    /// True if <paramref name="fd"/> is a terminal that has hung up: the other end closed, so every call but close
+    /// fails with EIO (1.x spec §25.3).
+    /// </summary>
+    public static bool IsHungUp(int fd)
+    {
+        var termios = stackalloc byte[TermiosSize];
+        return tcgetattr(fd, termios) != 0 && Marshal.GetLastPInvokeError() == Eio;
+    }
 
     /// <summary>True while a terminal is in raw mode.</summary>
     public static bool IsRaw

@@ -93,6 +93,7 @@ public partial class App
 
         if (_stopping.IsCancellationRequested) _stopping = new CancellationTokenSource();
         _failure = null;
+        _ended = false;
         _uiThreadId = Environment.CurrentManagedThreadId;
         _running = true;
 
@@ -136,6 +137,11 @@ public partial class App
             run.ResizeHooked = true;
             if (IsConsole(run.Terminal.Backend))
                 run.JobControl = TerminalSession.ListenForJobControl(OnStopSignal, OnContinueSignal);
+            if (ConsoleOverride ?? IsConsole(run.Terminal.Backend))
+            {
+                AddConsoleApp();
+                run.ConsoleListed = true;
+            }
         }
         catch
         {
@@ -166,6 +172,7 @@ public partial class App
     internal bool Step(bool wait)
     {
         if (!_running || _run is not { Terminal: { } terminal } run) return false;
+        if (_ended) return WaitToEnd();
         if (!run.FirstFrame && wait) WaitForWork();
         else if (wait && HoldFirstFrame(out var hold)) WaitForQueue(hold);
         var dirty = run.FirstFrame;
@@ -179,7 +186,7 @@ public partial class App
         }
 
         // 2. Drain the queue in FIFO order
-        for (var budget = MaxItemsPerIteration; budget > 0 && _running && TryTake(out var item); budget--)
+        for (var budget = MaxItemsPerIteration; budget > 0 && _running && !_ended && TryTake(out var item); budget--)
         {
             switch (item)
             {
@@ -216,10 +223,14 @@ public partial class App
                 case RedrawRequest:
                     dirty = true;
                     break;
+                case Ending ending:
+                    RunEnding(ending);
+                    break;
             }
         }
 
         if (!_running) return false;
+        if (_ended) return WaitToEnd();
 
         // With a theme pair, the first frame waits briefly for the terminal's background (1.x spec §12.3)
         if (run.FirstFrame && HoldFirstFrame(out _)) return true;
@@ -258,6 +269,7 @@ public partial class App
         CancelStopping();
         if (run.ResizeHooked) TerminalSession.Resized -= OnResizeSignal;
         run.JobControl?.Dispose();
+        if (run.ConsoleListed) RemoveConsoleApp();
         run.Cancellation.Dispose();
         if (run.HoverCapture) run.MouseCapture?.SetHoverCapture(false);
         run.MouseCapture?.SetMouseCapture(false);
@@ -319,6 +331,7 @@ public partial class App
         public IMouseCapture? MouseCapture { get; set; }
         public bool HoverCapture { get; set; }
         public IDisposable? JobControl { get; set; }
+        public bool ConsoleListed { get; set; }
         public bool FirstFrame { get; set; } = true;
     }
 
@@ -483,12 +496,12 @@ public partial class App
         if (_onKey?.Invoke(key) == true) return;
         if (HandleDebugKey(key)) return;
 
-        // Ctrl+C quits unless OnKey took it, or the focused text component, or one with a selection, copied with it
-        // (1.x spec §10.4, §20.5)
+        // Ctrl+C asks to quit unless OnKey took it, or the focused text component, or one with a selection, copied with
+        // it (1.x spec §10.4, §20.5, §25.3)
         if (KeyInput.IsCtrlC(key))
         {
             if (KeyRouter.Chain(this) is [.., var focused] && (focused.CapturesText || focused.HasSelection) && focused.HandleKey(key)) return;
-            Quit();
+            RequestQuit();
             return;
         }
 
@@ -750,6 +763,24 @@ public partial class App
         Justification = "A throwing OnError handler is treated as Rethrow.")]
     private void HandleError(Exception error)
     {
+        // The process is ending (1.x spec §25.3): report it, but don't quit or rethrow from under the signal
+        if (_ended)
+        {
+            try
+            {
+                _onError?.Invoke(error);
+            }
+            catch (Exception)
+            {
+            }
+            return;
+        }
+        if (IsHangup(error))
+        {
+            HangUp();
+            return;
+        }
+
         ErrorAction decision;
         try
         {

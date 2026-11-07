@@ -568,4 +568,96 @@ public class TextAreaTests
         Assert.Equal(P(0, 1), screen.Notes.Cursor);
         Assert.Equal("│ hi               │", harness.Lines[1]);
     }
+    // ---- Changed (1.x spec §25.2) ----
+
+    private static Func<int> CountChanges(TextAreaState state)
+    {
+        var changes = 0;
+        state.Changed += (_, _) => changes++;
+        return () => changes;
+    }
+
+    [Theory]
+    [InlineData("backspace")]
+    [InlineData("delete")]
+    [InlineData("enter")]
+    [InlineData("ctrl+w")]
+    [InlineData("ctrl+u")]
+    [InlineData("ctrl+k")]
+    public void Changed_is_raised_once_for_each_edit(string key)
+    {
+        var state = new TextAreaState("one two\nthree");
+        state.Cursor = new TextPosition(0, 4);
+        var changes = CountChanges(state);
+        Press(state, key);
+        Assert.Equal(1, changes());
+    }
+
+    [Fact]
+    public void Changed_is_raised_for_typing_pasting_inserting_undo_and_redo()
+    {
+        var state = new TextAreaState();
+        var changes = CountChanges(state);
+        Type(state, "ab");
+        Assert.Equal(2, changes());
+        Assert.True(state.Paste("c\nd"));
+        state.Insert("e");
+        Assert.Equal(4, changes());
+        Assert.True(state.Undo());
+        Assert.True(state.Redo());
+        Assert.Equal(6, changes());
+    }
+
+    [Fact]
+    public void Changed_is_raised_for_indenting_and_outdenting()
+    {
+        var state = new TextAreaState("    a\nb") { TabIndents = true };
+        state.SelectAll();
+        var changes = CountChanges(state);
+        Press(state, "shift+tab");
+        Press(state, "tab");
+        Assert.Equal(2, changes());
+    }
+
+    [Fact]
+    public void Changed_sees_the_state_after_the_edit()
+    {
+        var state = new TextAreaState("ab");
+        string? seen = null;
+        TextPosition? cursor = null;
+        state.Changed += (_, _) => (seen, cursor) = (state.Text, state.Cursor);
+        Type(state, "c");
+        Assert.Equal("abc", seen);
+        Assert.Equal(new TextPosition(0, 3), cursor);
+    }
+
+    [Fact]
+    public void Changed_is_not_raised_for_moves_selection_or_edits_that_change_nothing()
+    {
+        var state = new TextAreaState("one\ntwo");
+        state.Cursor = default;
+        var changes = CountChanges(state);
+        Press(state, "right", "down", "end", "ctrl+home", "shift+right", "ctrl+a");
+        state.Cursor = default;
+        Press(state, "backspace");                        // at the start
+        state.Cursor = state.Cursor with { Line = 1, Index = 3 };
+        Press(state, "delete");                           // at the end
+        state.Insert("");
+        Assert.False(state.Undo());                       // nothing to undo
+        Assert.Equal(0, changes());
+    }
+
+    [Fact]
+    public void Setting_Text_raises_Changed_only_for_different_text()
+    {
+        var state = new TextAreaState("same");
+        var changes = CountChanges(state);
+        state.Text = "same";
+        Assert.Equal(0, changes());
+        state.Text = "other";
+        state.Clear();
+        Assert.Equal(2, changes());
+        state.Text = "";
+        Assert.Equal(2, changes());
+    }
 }

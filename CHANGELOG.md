@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `App.OnQuitting(reason => ...)`, run on the UI thread before the app quits, so an app with unsaved work can save it or ask first. Ctrl+C and the new `App.RequestQuit()` call it with `QuitReason.Requested`, and returning false keeps the app running. A hangup (SIGHUP, or the console window closing on Windows) and SIGTERM call it with `QuitReason.Hangup` or `QuitReason.Terminated`; the process then ends as before, whatever it returns, and the signal waits up to 2 seconds for it. Nothing is drawn after it, so nothing lands on the shell's screen. Nested apps all get the signal, innermost first. `App.Quit()` doesn't call it. `ComponentHarness.Signal(reason)` delivers a hangup or SIGTERM in tests.
+- `TextAreaState.Changed`, raised after the text changes (typing, deleting, pasting, cutting, indenting, undo and redo, or setting `Text` to something else), but not for cursor or selection moves, as `TextFieldState.Changed` is.
+
+### Changed
+- Ctrl+C and the built-in `ctrl+c` binding call `RequestQuit()` instead of `Quit()`. Without an `OnQuitting` handler that's the same thing.
+
+### Fixed
+- Closing the terminal no longer crashes the app with an `IOException`. The hangup's SIGCONT redrew the screen, and the write to the closed terminal threw before the SIGHUP was handled. An I/O error once the console has hung up is now treated as the hangup.
+
 ## [2.1.1] - 2026-11-06
 
 MiniTui 2.1.1: Ctrl+J works on terminals without a keyboard protocol.

@@ -904,4 +904,16 @@ public sealed class SelectionTests : IDisposable
 
         Assert.Equal(["hello"], written);
     }
+    [Fact]
+    public void A_text_areas_Changed_is_raised_for_cut_and_not_for_copy()
+    {
+        var state = new TextAreaState("hello world");
+        state.Select(new TextPosition(0, 0), new TextPosition(0, 5));
+        var changes = 0;
+        state.Changed += (_, _) => changes++;
+        Assert.True(state.Copy());
+        Assert.Equal(0, changes);
+        Assert.True(state.Cut());
+        Assert.Equal(1, changes);
+    }
 }
