@@ -80,6 +80,9 @@ public sealed class BlockBuilder
 
     internal bool IsFocused => _focused;
 
+    /// <summary>The style the borders are drawn in, for lines that join them.</summary>
+    internal Style BorderStyleFor(Theme theme) => (_focused ? theme.BorderFocused : theme.Border).Patch(_borderStyle ?? default);
+
     internal bool HasRightBorder => (_borders & MiniTui.Borders.Right) != 0;
 
     /// <summary>A bottom border without a bottom title, where a horizontal scrollbar can go (1.x spec §23.3).</summary>

@@ -12,6 +12,7 @@ size, scroll offset) back into it while drawing.
 | [`TextFieldState`](xref:MiniTui.TextFieldState) | Any text (including non-ASCII and emoji), ← → Home End, Ctrl+← → by word, Backspace/Delete by character, Ctrl+Backspace or Ctrl+W (word), Ctrl+U / Ctrl+K (to start / end); Shift with the moves selects, Ctrl+A selects all, Ctrl+C / Ctrl+X / Ctrl+V copy, cut and paste, Ctrl+Z / Ctrl+Y undo and redo (see [Selection and the clipboard](keys-and-state.md#selection-and-the-clipboard)) | TextField |
 | [`CommandLineState`](xref:MiniTui.CommandLineState) | The above, plus Enter (submit), Esc (clear), ↑ ↓ (history: immutable, capped at `MaxHistory`) | CommandLine |
 | [`TextAreaState`](xref:MiniTui.TextAreaState) | The `TextFieldState` keys across lines, plus Enter (new line), ↑ ↓ by wrapped row, PgUp PgDn, Home End by row then line, Ctrl+Home End, all of them with Shift to select; `Paste` keeps line breaks; `HandleMouse` places the cursor and scrolls; opt-in `TabIndents` (Tab and Shift+Tab indent and outdent the selected lines, Backspace deletes an indent level), `AutoIndent` (Enter keeps the indentation) and `IndentSize`; Ctrl+F opens a find bar on the last row (smart case, Enter/↓/F3 next, Shift+Enter/↑/Shift+F3 previous, Esc closes; `FindText`, `FindNext`, `MatchCount`, `FindEnabled = false` to leave Ctrl+F and F3 to the app) | TextArea |
+| [`FilterListState`](xref:MiniTui.FilterListState) | Typing filters the rows by fuzzy match, best first (all of them in order while the filter is empty); ↑ ↓ PgUp PgDn and Ctrl+Home Ctrl+End move the selection (`Wraps` to wrap), Home End and the other text keys edit the filter line, Esc clears it; Enter and Tab are the caller's. `SetRows` replaces the rows, keeping the selection by `Key`; `SelectionChanged`, and `Activated` on a double-click | FilterList |
 | [`SelectState`](xref:MiniTui.SelectState) | Enter, Space, ↑ ↓, Alt+↓ or F4 opens the menu (pass the [`App`](xref:MiniTui.App): `HandleKey(key, App)`); `HandleMouse` opens it on a click; `Changed` fires when the user picks another option. With `Filterable`, a typed letter opens it too, and typing in it narrows the options | Select |
 | [`TabBarState`](xref:MiniTui.TabBarState) | ← → h l | TabBar |
 | [`CheckboxState`](xref:MiniTui.CheckboxState) | Space; `HandleMouse` toggles on a click on the box or label; `Changed` | Checkbox |
@@ -67,6 +68,29 @@ sealed class PlanField : Component
     public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse, App);
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
         Widget.Select().State(State).Placeholder("Choose a plan").Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+}
+```
+
+A list narrowed by typing, like the palette but on a screen, is a component around a `FilterListState`. Each
+[`FilterRow`](xref:MiniTui.FilterRow) has a label (what's matched), optional muted detail and right-aligned hint, and
+a key, so replacing the rows when the data changes keeps the selection on the same item:
+
+```csharp
+sealed class NoteList(Func<IEnumerable<Note>> notes) : Component
+{
+    public FilterListState State { get; } = new();
+    public override bool CapturesText => true;
+    public void Refresh() => State.SetRows(notes().Select(n => new FilterRow(n.Name, Hint: n.Changed.ToString("MMM d"), Key: n.Id)));
+    protected override void OnMount()
+    {
+        Refresh();
+        Keys.Add("enter", "Open", () => { if (State.Selected is { } row) Open(State.Rows[row]); });
+    }
+    public override bool HandleKey(ConsoleKeyInfo key) => State.HandleKey(key);
+    public override bool HandlePaste(string text) => State.HandlePaste(text);
+    public override bool HandleMouse(MouseEvent mouse) => State.HandleMouse(mouse);
+    public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+        Widget.FilterList(State).Placeholder("Filter").Block(Widget.Block().Title("Notes")).Focused(ctx.Focused).Draw(buf, area);
 }
 ```
 

@@ -5345,7 +5345,10 @@ public sealed class FilterListBuilder
   the public type and look the same as now.
 - **Empty filter:** every row in its own order, not by score, so a list sorted by the app (newest first, say) stays
   sorted until the user types.
+- **Typing** selects the best match, as in the palette. Rows without a `Key` are kept across `SetRows` by label.
 - **Home and End** go to the filter line, as in the palette; Ctrl+Home and Ctrl+End move the selection.
+- **A block's padding** is replaced: the filter line and rows keep a column each side, and the selection spans the
+  width. Without a block, the scrollbar takes the last column.
 - **The rows are the state's**, set with `SetRows` when the app's data changes, not passed at each draw, because
   keys between draws filter them. With keys, a refresh keeps the selection on its item (as §24.3 does for lists).
 - `Sanitizer.SingleLine` applies to labels, details and hints, as now.
