@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-07
+
+MiniTui 2.2: gaps found building MiniTui Desk's apps. Apps can save before quitting, on Ctrl+C, a hangup or SIGTERM; text areas report changes and can color parts of their text; a text prompt dialog; the palette's filterable list is public; and long toasts wrap.
+
 ### Added
 - `TextAreaBuilder.Highlight((line, text) => ranges)` colors parts of a text area's text, for syntax, Markdown or errors. Each `StyledRange(Start, Length, Style)` is patched over its cells, under the search matches, the selection and the cursor. Ranges past the line or empty are ignored, and a range that cuts a wide character or an emoji covers all of it. The callback is called once per visible line at each draw.
 - `FilterListState` and `Widget.FilterList(state)`: the command palette's list narrowed by typing, public, for use on a screen as well as in an overlay. `FilterRow` has a label (matched), a muted detail, a right-aligned hint and a key. Typing filters by fuzzy match, best first, and selects the best match; an empty filter shows every row in its own order. ↑ ↓ PgUp PgDn and Ctrl+Home Ctrl+End move the selection (`Wraps` to wrap), Esc clears the filter, and Enter and Tab are the caller's. `SetRows` replaces the rows and keeps the selection on the row with the same key (or label). `SelectionChanged`, and `Activated` on a double-click. The builder takes a `Block`, which the divider joins, a `Placeholder`, `Empty` text and `Focused`. The palette and the filterable select are built on it and look and work as before.

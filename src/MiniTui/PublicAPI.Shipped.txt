@@ -24,6 +24,7 @@ MiniTui.App.OnEvent(System.Action<MiniTui.Event!>! handler) -> MiniTui.App!
 MiniTui.App.OnKey(System.Func<System.ConsoleKeyInfo, bool>! handler) -> MiniTui.App!
 MiniTui.App.OnMouse(System.Func<MiniTui.MouseEvent!, bool>! handler) -> MiniTui.App!
 MiniTui.App.OnPaste(System.Func<string!, bool>! handler) -> MiniTui.App!
+MiniTui.App.OnQuitting(System.Func<MiniTui.QuitReason, bool>! quitting) -> MiniTui.App!
 MiniTui.App.OnSetup(System.Action! setup) -> MiniTui.App!
 MiniTui.App.OnSetup(System.Action<MiniTui.App!>! setup) -> MiniTui.App!
 MiniTui.App.OnUpdate(System.Action! update) -> MiniTui.App!
@@ -33,6 +34,7 @@ MiniTui.App.Post(System.Action! action) -> void
 MiniTui.App.Quit() -> void
 MiniTui.App.QuitWhenEmpty(bool quit = true) -> MiniTui.App!
 MiniTui.App.Render(System.Action<MiniTui.CellBuffer!, MiniTui.Rect>! render) -> MiniTui.App!
+MiniTui.App.RequestQuit() -> void
 MiniTui.App.RequestRedraw() -> void
 MiniTui.App.Run() -> void
 MiniTui.App.RunAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
@@ -343,6 +345,7 @@ MiniTui.ComponentHarness.Paste(string! text) -> void
 MiniTui.ComponentHarness.Press(string! keys) -> void
 MiniTui.ComponentHarness.RunUntilIdle() -> void
 MiniTui.ComponentHarness.Scroll(int x, int y, int rows) -> void
+MiniTui.ComponentHarness.Signal(MiniTui.QuitReason reason) -> void
 MiniTui.ComponentHarness.Type(string! text) -> void
 MiniTui.ConfirmDialog
 MiniTui.ConfirmDialog.ConfirmDialog(string! message, string! yes = "Yes", string! no = "No", bool yesFirst = true) -> void
@@ -378,6 +381,40 @@ MiniTui.ErrorAction.Rethrow = 2 -> MiniTui.ErrorAction
 MiniTui.Event
 MiniTui.Event.Event() -> void
 MiniTui.Event.Event(MiniTui.Event! original) -> void
+MiniTui.FilterListBuilder
+MiniTui.FilterListBuilder.Block(MiniTui.BlockBuilder? block) -> MiniTui.FilterListBuilder!
+MiniTui.FilterListBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
+MiniTui.FilterListBuilder.Empty(string! text) -> MiniTui.FilterListBuilder!
+MiniTui.FilterListBuilder.Focused(bool focused = true) -> MiniTui.FilterListBuilder!
+MiniTui.FilterListBuilder.Placeholder(string? text) -> MiniTui.FilterListBuilder!
+MiniTui.FilterListState
+MiniTui.FilterListState.Activated -> System.EventHandler?
+MiniTui.FilterListState.Filter.get -> MiniTui.TextFieldState!
+MiniTui.FilterListState.FilterListState(System.Collections.Generic.IEnumerable<MiniTui.FilterRow>? rows = null, string! filter = "") -> void
+MiniTui.FilterListState.HandleKey(System.ConsoleKeyInfo key) -> bool
+MiniTui.FilterListState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+MiniTui.FilterListState.HandlePaste(string! text) -> bool
+MiniTui.FilterListState.Matches.get -> System.Collections.Generic.IReadOnlyList<int>!
+MiniTui.FilterListState.Rows.get -> System.Collections.Generic.IReadOnlyList<MiniTui.FilterRow>!
+MiniTui.FilterListState.Select(int row) -> void
+MiniTui.FilterListState.Selected.get -> int?
+MiniTui.FilterListState.SelectionChanged -> System.EventHandler?
+MiniTui.FilterListState.SetRows(System.Collections.Generic.IEnumerable<MiniTui.FilterRow>! rows) -> void
+MiniTui.FilterListState.Wraps.get -> bool
+MiniTui.FilterListState.Wraps.set -> void
+MiniTui.FilterRow
+MiniTui.FilterRow.Deconstruct(out string! Label, out string? Detail, out string? Hint, out object? Key) -> void
+MiniTui.FilterRow.Detail.get -> string?
+MiniTui.FilterRow.Detail.init -> void
+MiniTui.FilterRow.Equals(MiniTui.FilterRow other) -> bool
+MiniTui.FilterRow.FilterRow() -> void
+MiniTui.FilterRow.FilterRow(string! Label, string? Detail = null, string? Hint = null, object? Key = null) -> void
+MiniTui.FilterRow.Hint.get -> string?
+MiniTui.FilterRow.Hint.init -> void
+MiniTui.FilterRow.Key.get -> object?
+MiniTui.FilterRow.Key.init -> void
+MiniTui.FilterRow.Label.get -> string!
+MiniTui.FilterRow.Label.init -> void
 MiniTui.Flex
 MiniTui.Flex.Center = 2 -> MiniTui.Flex
 MiniTui.Flex.End = 1 -> MiniTui.Flex
@@ -651,6 +688,7 @@ MiniTui.OverlayStack
 MiniTui.OverlayStack.Any.get -> bool
 MiniTui.OverlayStack.Close(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ConfirmAsync(string! message, string! yes = "Yes", string! no = "No", bool yesFirst = true) -> System.Threading.Tasks.Task<bool>!
+MiniTui.OverlayStack.PromptAsync(string! title, string! text = "", System.Func<string!, string?>? validate = null, string? placeholder = null) -> System.Threading.Tasks.Task<string?>!
 MiniTui.OverlayStack.Show(MiniTui.Overlay! overlay) -> void
 MiniTui.OverlayStack.ShowHelp() -> void
 MiniTui.OverlayStack.ShowMenuAsync(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> System.Threading.Tasks.Task<int?>!
@@ -708,6 +746,14 @@ MiniTui.PopupMenu.MinWidth.get -> int
 MiniTui.PopupMenu.MinWidth.init -> void
 MiniTui.PopupMenu.PopupMenu(System.Collections.Generic.IReadOnlyList<MiniTui.MenuItem!>! items, MiniTui.Rect anchor, int selected = 0) -> void
 MiniTui.PopupMenu.Result.get -> System.Threading.Tasks.Task<int?>!
+MiniTui.PromptDialog
+MiniTui.PromptDialog.Problem.get -> string?
+MiniTui.PromptDialog.PromptDialog(string! title, string! text = "", System.Func<string!, string?>? validate = null, string? placeholder = null) -> void
+MiniTui.PromptDialog.Result.get -> System.Threading.Tasks.Task<string?>!
+MiniTui.QuitReason
+MiniTui.QuitReason.Hangup = 1 -> MiniTui.QuitReason
+MiniTui.QuitReason.Requested = 0 -> MiniTui.QuitReason
+MiniTui.QuitReason.Terminated = 2 -> MiniTui.QuitReason
 MiniTui.Rect
 MiniTui.Rect.Bottom.get -> int
 MiniTui.Rect.Center.get -> MiniTui.Vec2
@@ -939,6 +985,17 @@ MiniTui.Style.Style(MiniTui.Color? Fg = null, MiniTui.Color? Bg = null, MiniTui.
 MiniTui.Style.Underlined() -> MiniTui.Style
 MiniTui.Style.WithBg(MiniTui.Color c) -> MiniTui.Style
 MiniTui.Style.WithFg(MiniTui.Color c) -> MiniTui.Style
+MiniTui.StyledRange
+MiniTui.StyledRange.Deconstruct(out int Start, out int Length, out MiniTui.Style Style) -> void
+MiniTui.StyledRange.Equals(MiniTui.StyledRange other) -> bool
+MiniTui.StyledRange.Length.get -> int
+MiniTui.StyledRange.Length.init -> void
+MiniTui.StyledRange.Start.get -> int
+MiniTui.StyledRange.Start.init -> void
+MiniTui.StyledRange.Style.get -> MiniTui.Style
+MiniTui.StyledRange.Style.init -> void
+MiniTui.StyledRange.StyledRange() -> void
+MiniTui.StyledRange.StyledRange(int Start, int Length, MiniTui.Style Style) -> void
 MiniTui.TabBarBuilder
 MiniTui.TabBarBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TabBarBuilder.Focused(bool focused = true) -> MiniTui.TabBarBuilder!
@@ -1052,6 +1109,7 @@ MiniTui.TextAreaBuilder
 MiniTui.TextAreaBuilder.Block(MiniTui.BlockBuilder! block) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.Draw(MiniTui.CellBuffer! buf, MiniTui.Rect area) -> void
 MiniTui.TextAreaBuilder.Focused(bool focused = true) -> MiniTui.TextAreaBuilder!
+MiniTui.TextAreaBuilder.Highlight(System.Func<int, string!, System.Collections.Generic.IEnumerable<MiniTui.StyledRange>!>? highlight) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.LineNumbers(bool show = true) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.Placeholder(string? placeholder) -> MiniTui.TextAreaBuilder!
 MiniTui.TextAreaBuilder.State(MiniTui.TextAreaState! state) -> MiniTui.TextAreaBuilder!
@@ -1063,6 +1121,7 @@ MiniTui.TextAreaState.AutoIndent.get -> bool
 MiniTui.TextAreaState.AutoIndent.set -> void
 MiniTui.TextAreaState.CanRedo.get -> bool
 MiniTui.TextAreaState.CanUndo.get -> bool
+MiniTui.TextAreaState.Changed -> System.EventHandler?
 MiniTui.TextAreaState.Clear() -> void
 MiniTui.TextAreaState.ClearSelection() -> void
 MiniTui.TextAreaState.CloseFind() -> void
@@ -1375,6 +1434,7 @@ override MiniTui.Dataset.ToString() -> string!
 override MiniTui.Event.Equals(object? obj) -> bool
 override MiniTui.Event.GetHashCode() -> int
 override MiniTui.Event.ToString() -> string!
+override MiniTui.FilterRow.GetHashCode() -> int
 override MiniTui.FrameStats.GetHashCode() -> int
 override MiniTui.FuzzyMatch.GetHashCode() -> int
 override MiniTui.HelpOverlay.HandleKey(System.ConsoleKeyInfo key) -> bool
@@ -1427,6 +1487,13 @@ override MiniTui.PopupMenu.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 override MiniTui.PopupMenu.KeysGroup.get -> string!
 override MiniTui.PopupMenu.Placement(MiniTui.Rect screen) -> MiniTui.Rect
 override MiniTui.PopupMenu.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.PromptDialog.CapturesText.get -> bool
+override MiniTui.PromptDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.PromptDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.PromptDialog.HandlePaste(string! text) -> bool
+override MiniTui.PromptDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
+override MiniTui.PromptDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.PromptDialog.Title.get -> string?
 override MiniTui.Rect.GetHashCode() -> int
 override MiniTui.ResizeEvent.<Clone>$() -> MiniTui.ResizeEvent!
 override MiniTui.ResizeEvent.Equals(object? obj) -> bool
@@ -1439,6 +1506,7 @@ override MiniTui.ResumeEvent.ToString() -> string!
 override MiniTui.Screen.KeysGroup.get -> string!
 override MiniTui.Span.GetHashCode() -> int
 override MiniTui.Style.GetHashCode() -> int
+override MiniTui.StyledRange.GetHashCode() -> int
 override MiniTui.TerminalInfo.Equals(object? obj) -> bool
 override MiniTui.TerminalInfo.GetHashCode() -> int
 override MiniTui.TerminalInfo.ToString() -> string!
@@ -1532,6 +1600,8 @@ static MiniTui.Dataset.operator !=(MiniTui.Dataset? left, MiniTui.Dataset? right
 static MiniTui.Dataset.operator ==(MiniTui.Dataset? left, MiniTui.Dataset? right) -> bool
 static MiniTui.Event.operator !=(MiniTui.Event? left, MiniTui.Event? right) -> bool
 static MiniTui.Event.operator ==(MiniTui.Event? left, MiniTui.Event? right) -> bool
+static MiniTui.FilterRow.operator !=(MiniTui.FilterRow left, MiniTui.FilterRow right) -> bool
+static MiniTui.FilterRow.operator ==(MiniTui.FilterRow left, MiniTui.FilterRow right) -> bool
 static MiniTui.FrameStats.operator !=(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
 static MiniTui.FrameStats.operator ==(MiniTui.FrameStats left, MiniTui.FrameStats right) -> bool
 static MiniTui.Fuzzy.Match(string! pattern, string! text) -> MiniTui.FuzzyMatch?
@@ -1579,6 +1649,8 @@ static MiniTui.SplitState.Fixed(MiniTui.Direction direction, int cells, MiniTui.
 static MiniTui.Style.Default.get -> MiniTui.Style
 static MiniTui.Style.operator !=(MiniTui.Style left, MiniTui.Style right) -> bool
 static MiniTui.Style.operator ==(MiniTui.Style left, MiniTui.Style right) -> bool
+static MiniTui.StyledRange.operator !=(MiniTui.StyledRange left, MiniTui.StyledRange right) -> bool
+static MiniTui.StyledRange.operator ==(MiniTui.StyledRange left, MiniTui.StyledRange right) -> bool
 static MiniTui.TerminalInfo.operator !=(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
 static MiniTui.TerminalInfo.operator ==(MiniTui.TerminalInfo? left, MiniTui.TerminalInfo? right) -> bool
 static MiniTui.TerminalInfoEvent.operator !=(MiniTui.TerminalInfoEvent? left, MiniTui.TerminalInfoEvent? right) -> bool
@@ -1627,6 +1699,7 @@ static MiniTui.Widget.Canvas() -> MiniTui.CanvasBuilder!
 static MiniTui.Widget.Chart() -> MiniTui.ChartBuilder!
 static MiniTui.Widget.Checkbox() -> MiniTui.CheckboxBuilder!
 static MiniTui.Widget.CommandLine() -> MiniTui.CommandLineBuilder!
+static MiniTui.Widget.FilterList(MiniTui.FilterListState! state) -> MiniTui.FilterListBuilder!
 static MiniTui.Widget.Gauge() -> MiniTui.GaugeBuilder!
 static MiniTui.Widget.List() -> MiniTui.ListBuilder!
 static MiniTui.Widget.Paragraph() -> MiniTui.ParagraphBuilder!
@@ -1681,6 +1754,8 @@ virtual MiniTui.TextFieldState.HandleKey(System.ConsoleKeyInfo key) -> bool
 ~override MiniTui.CellUpdate.Equals(object obj) -> bool
 ~override MiniTui.CellUpdate.ToString() -> string
 ~override MiniTui.Color.Equals(object obj) -> bool
+~override MiniTui.FilterRow.Equals(object obj) -> bool
+~override MiniTui.FilterRow.ToString() -> string
 ~override MiniTui.FrameStats.Equals(object obj) -> bool
 ~override MiniTui.FrameStats.ToString() -> string
 ~override MiniTui.FuzzyMatch.Equals(object obj) -> bool
@@ -1694,6 +1769,8 @@ virtual MiniTui.TextFieldState.HandleKey(System.ConsoleKeyInfo key) -> bool
 ~override MiniTui.Span.ToString() -> string
 ~override MiniTui.Style.Equals(object obj) -> bool
 ~override MiniTui.Style.ToString() -> string
+~override MiniTui.StyledRange.Equals(object obj) -> bool
+~override MiniTui.StyledRange.ToString() -> string
 ~override MiniTui.TextPosition.Equals(object obj) -> bool
 ~override MiniTui.TextPosition.ToString() -> string
 ~override MiniTui.TimedMessage.Equals(object obj) -> bool
