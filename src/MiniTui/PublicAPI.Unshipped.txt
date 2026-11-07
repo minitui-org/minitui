@@ -59,3 +59,20 @@ static MiniTui.FilterRow.operator !=(MiniTui.FilterRow left, MiniTui.FilterRow r
 static MiniTui.FilterRow.operator ==(MiniTui.FilterRow left, MiniTui.FilterRow right) -> bool
 ~override MiniTui.FilterRow.Equals(object obj) -> bool
 ~override MiniTui.FilterRow.ToString() -> string
+MiniTui.StyledRange
+MiniTui.StyledRange.Deconstruct(out int Start, out int Length, out MiniTui.Style Style) -> void
+MiniTui.StyledRange.Equals(MiniTui.StyledRange other) -> bool
+MiniTui.StyledRange.Length.get -> int
+MiniTui.StyledRange.Length.init -> void
+MiniTui.StyledRange.Start.get -> int
+MiniTui.StyledRange.Start.init -> void
+MiniTui.StyledRange.Style.get -> MiniTui.Style
+MiniTui.StyledRange.Style.init -> void
+MiniTui.StyledRange.StyledRange() -> void
+MiniTui.StyledRange.StyledRange(int Start, int Length, MiniTui.Style Style) -> void
+MiniTui.TextAreaBuilder.Highlight(System.Func<int, string!, System.Collections.Generic.IEnumerable<MiniTui.StyledRange>!>? highlight) -> MiniTui.TextAreaBuilder!
+override MiniTui.StyledRange.GetHashCode() -> int
+static MiniTui.StyledRange.operator !=(MiniTui.StyledRange left, MiniTui.StyledRange right) -> bool
+static MiniTui.StyledRange.operator ==(MiniTui.StyledRange left, MiniTui.StyledRange right) -> bool
+~override MiniTui.StyledRange.Equals(object obj) -> bool
+~override MiniTui.StyledRange.ToString() -> string

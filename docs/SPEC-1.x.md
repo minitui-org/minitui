@@ -5356,13 +5356,14 @@ public sealed class FilterListBuilder
 ### 25.6 Styled text in a text area (#78)
 
 ```csharp
-/// A styled range on one line: from Start, Length UTF-16 code units, patched with Style.
-public readonly record struct TextSpan(int Start, int Length, Style Style);
+/// A styled range on one line: from Start, Length UTF-16 code units, patched with Style. (Not TextSpan: Span is
+/// already MiniTui's styled text, and this is a range of a line.)
+public readonly record struct StyledRange(int Start, int Length, Style Style);
 
 public sealed class TextAreaBuilder
 {
     /// Style parts of each line, given its index and text. Called for the visible lines at each draw.
-    public TextAreaBuilder Highlight(Func<int, string, IEnumerable<TextSpan>> highlight);
+    public TextAreaBuilder Highlight(Func<int, string, IEnumerable<StyledRange>>? highlight);
 }
 ```
 
