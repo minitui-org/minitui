@@ -170,7 +170,7 @@ public class CommandPaletteTests
         harness.Type("rf");
 
         Assert.Equal(["Rename File", "Refresh", "Rarefy"], Labels(palette, items));
-        Assert.Equal(0, palette.List.SelectedItem);
+        Assert.Equal(0, palette.List.Selected);
 
         harness.Type("r");
         Assert.Equal(["Refresh"], Labels(palette, items));
@@ -189,17 +189,17 @@ public class CommandPaletteTests
         harness.RunUntilIdle();
 
         harness.Press("up");
-        Assert.Equal(29, palette.List.SelectedItem);
+        Assert.Equal(29, palette.List.Selected);
         harness.Press("down");
-        Assert.Equal(0, palette.List.SelectedItem);
+        Assert.Equal(0, palette.List.Selected);
         harness.Press("pgdn");
-        Assert.Equal(12, palette.List.SelectedItem);
+        Assert.Equal(12, palette.List.Selected);
         harness.Press("ctrl+end");
-        Assert.Equal(29, palette.List.SelectedItem);
+        Assert.Equal(29, palette.List.Selected);
         harness.Press("ctrl+home");
-        Assert.Equal(0, palette.List.SelectedItem);
+        Assert.Equal(0, palette.List.Selected);
         harness.Press("pgup");
-        Assert.Equal(0, palette.List.SelectedItem);
+        Assert.Equal(0, palette.List.Selected);
     }
 
     [Fact]
@@ -215,7 +215,7 @@ public class CommandPaletteTests
         harness.Paste("open");
 
         Assert.Equal("open", palette.List.Filter.Text);
-        Assert.Equal(1, palette.List.MatchCount);
+        Assert.Single(palette.List.Matches);
     }
 
     [Fact]
@@ -365,7 +365,7 @@ public class CommandPaletteTests
 
         harness.Scroll(15, 6, 2);
 
-        Assert.Equal(2, palette.List.SelectedItem);
+        Assert.Equal(2, palette.List.Selected);
     }
 
     [Fact]
@@ -486,10 +486,10 @@ public class CommandPaletteTests
 
         harness.Press("enter");
         var menu = Assert.IsType<FilterMenu>(harness.App.Overlays.Top);
-        Assert.Equal(4, menu.List.SelectedItem);
+        Assert.Equal(4, menu.List.Selected);
 
         harness.Type("a");
-        Assert.Equal(0, menu.List.SelectedItem);
+        Assert.Equal(0, menu.List.Selected);
     }
 
     [Theory]

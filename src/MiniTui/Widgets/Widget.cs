@@ -35,6 +35,8 @@ public static class Widget
     public static ToastsBuilder Toasts() => new();
     /// <summary>Create a new status bar widget builder.</summary>
     public static StatusBarBuilder StatusBar() => new();
+    /// <summary>A list narrowed by typing: a filter line over the rows of a <see cref="FilterListState"/> that match it (1.x spec §25.5).</summary>
+    public static FilterListBuilder FilterList(FilterListState state) => new(state);
     /// <summary>A single-line text input.</summary>
     public static TextFieldBuilder TextField() => new();
 

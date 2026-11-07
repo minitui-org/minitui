@@ -22,7 +22,7 @@ public sealed class CommandPalette : Overlay
 {
     private readonly TaskCompletionSource<int?> _result = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly PaletteItem[] _items;
-    private readonly FilterList _list;
+    private readonly FilterListState _list;
     private int? _choice;
 
     /// <summary>Create a palette over <paramref name="items"/>. Show it with <see cref="OverlayStack.Show"/>.</summary>
@@ -32,7 +32,7 @@ public sealed class CommandPalette : Overlay
         ArgumentNullException.ThrowIfNull(items);
         _items = [.. items];
         if (Array.IndexOf(_items, null) >= 0) throw new ArgumentException("The items can't contain null.", nameof(items));
-        _list = new FilterList(_items.Select(i => new FilterList.Row(i.Label, i.Detail, i.Hint)));
+        _list = new FilterListState(_items.Select(i => new FilterRow(i.Label, i.Detail, i.Hint))) { Wraps = true };
     }
 
     /// <summary>The chosen item's index in the items, or null when the palette closed without a choice.</summary>
@@ -45,7 +45,7 @@ public sealed class CommandPalette : Overlay
     public int MaxRows { get; init; } = 12;
 
     /// <summary>The filter line and matches, for tests.</summary>
-    internal FilterList List => _list;
+    internal FilterListState List => _list;
 
     /// <inheritdoc/>
     public override bool Framed => false;
@@ -114,7 +114,7 @@ public sealed class CommandPalette : Overlay
             case ConsoleKey.Escape:
                 return false; // closes the overlay
             case ConsoleKey.Enter when KeyInput.IsEnter(key):
-                if (_list.SelectedItem is { } item) Choose(item);
+                if (_list.Selected is { } item) Choose(item);
                 return true;
             case ConsoleKey.Tab:
                 return true;
@@ -124,13 +124,13 @@ public sealed class CommandPalette : Overlay
     }
 
     /// <inheritdoc/>
-    public override bool HandlePaste(string text) => _list.Paste(text);
+    public override bool HandlePaste(string text) => _list.HandlePaste(text);
 
     /// <inheritdoc/>
     public override bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
-        if (_list.HandleMouse(mouse) is { } item) Choose(item);
+        if (_list.Click(mouse) is { } item) Choose(item);
         return true;
     }
 
@@ -138,7 +138,7 @@ public sealed class CommandPalette : Overlay
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         ArgumentNullException.ThrowIfNull(buf);
-        _list.Draw(buf, area, Title, Placeholder);
+        FilterMenu.Draw(_list, buf, area, Title, Placeholder);
     }
 
     /// <inheritdoc/>

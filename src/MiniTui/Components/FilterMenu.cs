@@ -8,7 +8,7 @@ internal sealed class FilterMenu : Overlay
 {
     private const int MaxRows = 12;
 
-    private readonly FilterList _list;
+    private readonly FilterListState _list;
     private readonly Rect _anchor;
     private readonly int _minWidth;
     private readonly int _optionCount;
@@ -16,8 +16,8 @@ internal sealed class FilterMenu : Overlay
 
     public FilterMenu(IReadOnlyList<string> options, Rect anchor, int? selected, int minWidth, string text)
     {
-        _list = new FilterList(options.Select(o => new FilterList.Row(o ?? "")), text);
-        if (text.Length == 0 && selected is { } i) _list.SelectItem(i);
+        _list = new FilterListState(options.Select(o => new FilterRow(o ?? "")), text) { Wraps = true };
+        if (text.Length == 0 && selected is { } i) _list.Select(i);
         _list.Filter.Cursor = text.Length;
         _anchor = anchor;
         _minWidth = minWidth;
@@ -28,7 +28,7 @@ internal sealed class FilterMenu : Overlay
     internal Action<int?>? Closed { get; init; }
 
     /// <summary>The filter line and matches, for tests.</summary>
-    internal FilterList List => _list;
+    internal FilterListState List => _list;
 
     public override bool Framed => false;
 
@@ -54,26 +54,37 @@ internal sealed class FilterMenu : Overlay
                 Close();
                 return true;
             case ConsoleKey.Enter when KeyInput.IsEnter(key):
-                if (_list.SelectedItem is { } item) Choose(item);
+                if (_list.Selected is { } item) Choose(item);
                 return true;
         }
         _list.HandleKey(key);
         return true;
     }
 
-    public override bool HandlePaste(string text) => _list.Paste(text);
+    public override bool HandlePaste(string text) => _list.HandlePaste(text);
 
     public override bool HandleMouse(MouseEvent mouse)
     {
         ArgumentNullException.ThrowIfNull(mouse);
-        if (_list.HandleMouse(mouse) is { } item) Choose(item);
+        if (_list.Click(mouse) is { } item) Choose(item);
         return true;
     }
 
     public override void Render(CellBuffer buf, Rect area, RenderContext ctx)
     {
         ArgumentNullException.ThrowIfNull(buf);
-        _list.Draw(buf, area, title: null, placeholder: "Type to filter");
+        Draw(_list, buf, area, title: null, placeholder: "Type to filter");
+    }
+
+    /// <summary>The palette's and the menu's look: a modal block with the title, focused, over the whole area.</summary>
+    internal static void Draw(FilterListState list, CellBuffer buf, Rect area, string? title, string? placeholder)
+    {
+        var theme = Theme.Current;
+        var block = Widget.Block()
+            .Title(title is { Length: > 0 } t ? new Line(t) : null)
+            .BorderStyle(theme.ModalBorder)
+            .TitleStyle(theme.ModalTitle);
+        new FilterListBuilder(list) { FocusesBlock = false }.Block(block).Placeholder(placeholder).Focused().Draw(buf, area);
     }
 
     protected override void OnUnmount()
