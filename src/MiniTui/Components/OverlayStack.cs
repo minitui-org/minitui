@@ -97,6 +97,18 @@ public sealed class OverlayStack
         return menu.Result;
     }
 
+    /// <summary>
+    /// Ask for a line of text (1.x spec §25.4). Enter answers the text; Esc and closing the dialog answer null.
+    /// <paramref name="validate"/>, given the text on Enter, returns a message to show under the field (keeping the
+    /// dialog open) or null to accept it. Awaited on the UI thread, the continuation runs there.
+    /// </summary>
+    public Task<string?> PromptAsync(string title, string text = "", Func<string, string?>? validate = null, string? placeholder = null)
+    {
+        var dialog = new PromptDialog(title, text, validate, placeholder);
+        Show(dialog);
+        return dialog.Result;
+    }
+
     /// <summary>Show a scrollable message. The task completes when it's closed (Enter or Esc).</summary>
     public Task ShowMessageAsync(string title, Text body)
     {

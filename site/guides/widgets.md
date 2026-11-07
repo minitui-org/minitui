@@ -114,7 +114,8 @@ as half blocks. Windows Terminal is unaffected.
 
 Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even with `WithTickRate(null)`,
 and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
-for 4 seconds (or the `duration` you pass) from when it first appears.
+for 4 seconds (or the `duration` you pass) from when it first appears. A long message wraps at words, up to 3
+lines in a box up to 60 columns wide, and a line break in it starts a new line.
 
 ## Box styles
 

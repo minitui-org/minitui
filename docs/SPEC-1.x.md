@@ -5270,6 +5270,7 @@ public sealed class PromptDialog : Overlay   // public, as ConfirmDialog is
 {
     public PromptDialog(string title, string text = "", Func<string, string?>? validate = null, string? placeholder = null);
     public Task<string?> Result { get; }
+    public string? Problem { get; }   // the validation's message on screen, or null
 }
 ```
 

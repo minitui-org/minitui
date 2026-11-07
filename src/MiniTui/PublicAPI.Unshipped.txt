@@ -7,3 +7,15 @@ MiniTui.QuitReason.Requested = 0 -> MiniTui.QuitReason
 MiniTui.QuitReason.Terminated = 2 -> MiniTui.QuitReason
 MiniTui.TextAreaState.Changed -> System.EventHandler?
 MiniTui.ComponentHarness.Signal(MiniTui.QuitReason reason) -> void
+MiniTui.OverlayStack.PromptAsync(string! title, string! text = "", System.Func<string!, string?>? validate = null, string? placeholder = null) -> System.Threading.Tasks.Task<string?>!
+MiniTui.PromptDialog
+MiniTui.PromptDialog.PromptDialog(string! title, string! text = "", System.Func<string!, string?>? validate = null, string? placeholder = null) -> void
+MiniTui.PromptDialog.Problem.get -> string?
+MiniTui.PromptDialog.Result.get -> System.Threading.Tasks.Task<string?>!
+override MiniTui.PromptDialog.CapturesText.get -> bool
+override MiniTui.PromptDialog.HandleKey(System.ConsoleKeyInfo key) -> bool
+override MiniTui.PromptDialog.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
+override MiniTui.PromptDialog.HandlePaste(string! text) -> bool
+override MiniTui.PromptDialog.Placement(MiniTui.Rect screen) -> MiniTui.Rect
+override MiniTui.PromptDialog.Render(MiniTui.CellBuffer! buf, MiniTui.Rect area, MiniTui.RenderContext! ctx) -> void
+override MiniTui.PromptDialog.Title.get -> string?

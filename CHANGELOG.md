@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `OverlayStack.PromptAsync(title, text, validate, placeholder)` and `PromptDialog`, which ask for a line of text. Enter answers the text and Esc answers null. `validate` runs on Enter, and the message it returns shows under the field in the theme's error style, keeping the dialog open until the text changes. The dialog is 44 columns wide, or the screen less 4.
 - `App.OnQuitting(reason => ...)`, run on the UI thread before the app quits, so an app with unsaved work can save it or ask first. Ctrl+C and the new `App.RequestQuit()` call it with `QuitReason.Requested`, and returning false keeps the app running. A hangup (SIGHUP, or the console window closing on Windows) and SIGTERM call it with `QuitReason.Hangup` or `QuitReason.Terminated`; the process then ends as before, whatever it returns, and the signal waits up to 2 seconds for it. Nothing is drawn after it, so nothing lands on the shell's screen. Nested apps all get the signal, innermost first. `App.Quit()` doesn't call it. `ComponentHarness.Signal(reason)` delivers a hangup or SIGTERM in tests.
 - `TextAreaState.Changed`, raised after the text changes (typing, deleting, pasting, cutting, indenting, undo and redo, or setting `Text` to something else), but not for cursor or selection moves, as `TextFieldState.Changed` is.
 
 ### Changed
+- A long toast wraps at words, up to 3 lines in its 60-column box, instead of being cut to one line; only a message longer than that is cut, with `…` at the end of the third line. A line break in a toast starts a new line, where it used to become a space.
 - Ctrl+C and the built-in `ctrl+c` binding call `RequestQuit()` instead of `Quit()`. Without an `OnQuitting` handler that's the same thing.
 
 ### Fixed

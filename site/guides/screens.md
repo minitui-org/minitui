@@ -101,7 +101,8 @@ sealed class FilesScreen : Screen
 - **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and,
   in the room the hints leave, the screen titles. Turn it off with `WithChrome(statusBar: false)`.
 - **Overlays:** `app.Overlays.ConfirmAsync(message)` (Yes is selected first, or No with `yesFirst: false` for a
-  destructive action; `y` and `n` answer even when you pass other labels), `ShowMessageAsync(title, text)`,
+  destructive action; `y` and `n` answer even when you pass other labels), `PromptAsync(title, text, validate)`
+  (a line of text, or null for Esc; see below), `ShowMessageAsync(title, text)`,
   `ShowMenuAsync(items, anchor)`, `ShowHelp()`, `ShowPalette(registry)`, or `Show(new CommandLineOverlay(registry))` and your own
   [`Overlay`](xref:MiniTui.Overlay) subclasses. An overlay with `Framed => false` draws its own border; one with
   `CloseOnClickOutside => true` closes when the user clicks elsewhere.
@@ -152,9 +153,23 @@ sealed class FilesScreen : Screen
   app.Keys.Add("ctrl+p", "Commands", () => app.Overlays.ShowPalette(commands));
   ```
 
+## Asking for a line of text
+
+`PromptAsync` asks for a name, a search term or a value. `validate` runs on Enter: a message keeps the dialog open
+and shows under the field until the text changes, and null accepts it:
+
+```csharp
+Keys.Add("f2", "Rename", () => App.RunTask(async _ =>
+{
+    var name = await App.Overlays.PromptAsync("Rename", current,
+        text => text.Trim().Length == 0 ? "A name can't be empty" : null);
+    if (name is not null) Rename(current, name);
+}));
+```
+
 ## A dialog that returns a value
 
-A dialog is an [`Overlay`](xref:MiniTui.Overlay) subclass. Give it a task the caller awaits, completed when it
+For anything more, a dialog is an [`Overlay`](xref:MiniTui.Overlay) subclass. Give it a task the caller awaits, completed when it
 closes. Esc closes an overlay (unless `CloseOnEscape` is false), so complete the task in `OnUnmount` too:
 
 ```csharp
