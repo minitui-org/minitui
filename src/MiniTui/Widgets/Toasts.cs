@@ -88,6 +88,7 @@ public sealed class ToastQueue
 public sealed class ToastsBuilder
 {
     private const int MaxWidth = 60;
+    private const int MaxLines = 3;
 
     private ToastQueue? _queue;
 
@@ -109,10 +110,15 @@ public sealed class ToastsBuilder
         var y = area.Y;
         foreach (var toast in visible)
         {
-            var width = Math.Min(UnicodeWidth.Of(Sanitizer.SingleLine(toast.Text)) + 4, Math.Min(MaxWidth, area.Width - 1));
-            if (width < 5 || y + 3 > area.Bottom) break;
+            // 1.x spec §25.7: wrapped within the box, up to 3 lines, the box as wide as the longest
+            var inside = Math.Min(MaxWidth, area.Width - 1) - 4;
+            if (inside < 1) break;
+            var lines = Lines(toast.Text, inside);
+            var width = Math.Min(lines.Max(l => UnicodeWidth.Of(l)), inside) + 4;
+            var height = lines.Count + 2;
+            if (y + height > area.Bottom) break;
 
-            var box = new Rect(area.Right - width - 1, y, width, 3);
+            var box = new Rect(area.Right - width - 1, y, width, height);
             WidgetText.Clear(buf, box);
             var border = toast.Level switch
             {
@@ -122,8 +128,24 @@ public sealed class ToastsBuilder
                 _ => theme.Info,
             };
             var inner = new BlockBuilder().BorderType(BoxStyle.Rounded).BorderStyle(border).Padding(new Margin(1, 0)).Draw(buf, box);
-            WidgetText.DrawString(buf, inner.X, inner.Y, toast.Text, inner.Width, theme.Text);
-            y += 3;
+            for (var i = 0; i < lines.Count && i < inner.Height; i++)
+                WidgetText.DrawString(buf, inner.X, inner.Y + i, lines[i], inner.Width, theme.Text);
+            y += height;
         }
+    }
+
+    // The text's rows at the width: line breaks kept, words wrapped, and past the last row the rest run into it, so
+    // drawing it cuts it with "…"
+    private static List<string> Lines(string text, int width)
+    {
+        var rows = TextWrap.Wrap(Text.From(text), width, WrapMode.Word)
+            .Select(row => Sanitizer.SingleLine(string.Concat(row.Spans.Select(s => s.Content))).TrimEnd())
+            .ToList();
+        if (rows.Count == 0) rows.Add("");
+        if (rows.Count <= MaxLines) return rows;
+        var last = string.Join(' ', rows.Skip(MaxLines - 1));
+        rows.RemoveRange(MaxLines - 1, rows.Count - MaxLines + 1);
+        rows.Add(last);
+        return rows;
     }
 }
