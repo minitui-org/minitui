@@ -2,6 +2,12 @@ using System.Globalization;
 
 namespace MiniTui;
 
+/// <summary>A styled range on one line of a text area (1.x spec §25.6).</summary>
+/// <param name="Start">The first UTF-16 code unit in the line.</param>
+/// <param name="Length">How many UTF-16 code units.</param>
+/// <param name="Style">Patched over the cells' style, so a foreground color alone keeps the background.</param>
+public readonly record struct StyledRange(int Start, int Length, Style Style);
+
 /// <summary>
 /// A multi-line text input (1.x spec §6). Long lines wrap; the view scrolls vertically to keep the cursor visible,
 /// and when focused shows the terminal cursor at the insertion point.
@@ -15,6 +21,7 @@ public sealed class TextAreaBuilder
     private Style? _style;
     private WrapMode _wrap = WrapMode.Word;
     private bool _lineNumbers;
+    private Func<int, string, IEnumerable<StyledRange>>? _highlight;
 
     /// <summary>The text and cursor.</summary>
     public TextAreaBuilder State(TextAreaState state) { _state = state; return this; }
@@ -42,6 +49,14 @@ public sealed class TextAreaBuilder
     /// isn't drawn when that would leave no room for text.
     /// </summary>
     public TextAreaBuilder LineNumbers(bool show = true) { _lineNumbers = show; return this; }
+
+    /// <summary>
+    /// Style parts of each line (1.x spec §25.6): <paramref name="highlight"/> gets a line's index and text and returns
+    /// the ranges to style. It's called once per visible line at each draw, so it should be fast, caching per line if
+    /// it needs to. Ranges are drawn under the search matches, the selection and the cursor; ranges past the line or
+    /// empty are ignored, and their ends move out to the edges of the characters they cut.
+    /// </summary>
+    public TextAreaBuilder Highlight(Func<int, string, IEnumerable<StyledRange>>? highlight) { _highlight = highlight; return this; }
 
     /// <summary>
     /// Draw the text area inside its block (or area). With a block that has a right border, a scrollbar is drawn on it
@@ -103,10 +118,19 @@ public sealed class TextAreaBuilder
             var left = _wrap == WrapMode.None ? state.HorizontalOffset : 0;
             var selection = _focused ? theme.Selection : theme.SelectionUnfocused;
             var matches = finding ? state.Matches : [];
+            var highlighted = new Dictionary<int, List<StyledRange>>();
             for (var y = 0; y < inner.Height && state.ScrollOffset + y < rows.Count; y++)
             {
                 var visible = rows[state.ScrollOffset + y];
                 DrawRow(buf, inner.X, inner.Y + y, state.Lines, visible, left, inner.Width, style);
+                if (_highlight is not null)
+                {
+                    foreach (var range in HighlightsOf(visible.Line, state.Lines[visible.Line], highlighted))
+                    {
+                        DrawRange(buf, inner, inner.Y + y, state, visible, left, new TextPosition(visible.Line, range.Start),
+                            new TextPosition(visible.Line, range.Start + range.Length), range.Style);
+                    }
+                }
                 foreach (var match in matches)
                 {
                     if (match.Start.Line == visible.Line)
@@ -125,6 +149,37 @@ public sealed class TextAreaBuilder
         x = Math.Min(x, inner.Right - 1);
         buf.SetStyle(new Rect(x, inner.Y + row, 1, 1), theme.Cursor);
         buf.SetCursor(x, inner.Y + row);
+    }
+
+    // The line's ranges, asked for once per draw (a wrapped line has several rows), clamped and snapped to clusters
+    private List<StyledRange> HighlightsOf(int index, string line, Dictionary<int, List<StyledRange>> cache)
+    {
+        if (cache.TryGetValue(index, out var ranges)) return ranges;
+        ranges = [];
+        foreach (var range in _highlight!(index, line) ?? [])
+        {
+            // Empty, before the line or past it; ClusterStart takes a negative start to 0
+            var end = (int)Math.Min((long)range.Start + range.Length, line.Length);
+            if (end <= Math.Max(0, range.Start)) continue;
+            var start = ClusterStart(line, range.Start);
+            end = TextFieldState.SnapToBoundary(line, end);
+            ranges.Add(range with { Start = start, Length = end - start });
+        }
+        cache[index] = ranges;
+        return ranges;
+    }
+
+    // The start of the cluster holding the code unit at index
+    private static int ClusterStart(string line, int index)
+    {
+        var start = 0;
+        while (start < line.Length)
+        {
+            var next = start + StringInfo.GetNextTextElementLength(line, start);
+            if (next > index) return start;
+            start = next;
+        }
+        return line.Length;
     }
 
     // "Find: " and the field, with "3 of 12", "12 matches" or "No matches" on the right

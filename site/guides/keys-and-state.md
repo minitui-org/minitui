@@ -58,6 +58,28 @@ public TextAreaState State { get; } = new() { TabIndents = true, AutoIndent = tr
 Widget.TextArea().State(State).LineNumbers().Block(Widget.Block().Title(" config.yaml ")).Focused(ctx.Focused).Draw(buf, area);
 ```
 
+To color parts of the text (syntax, Markdown, errors), give the builder a `Highlight` callback. It gets a line's
+index and text and returns [`StyledRange`](xref:MiniTui.StyledRange)s, each patched over the cells, so a range that
+sets only a foreground color keeps the selection's background. It's called for the visible lines at every draw, so
+keep it quick. A small Markdown highlighter:
+
+```csharp
+static readonly Regex Emphasis = new(@"\*\*[^*]+\*\*|`[^`]+`");
+
+static IEnumerable<StyledRange> Markdown(int line, string text)
+{
+    if (text.StartsWith('#')) return [new StyledRange(0, text.Length, new Style(Color.Cyan).Bold())];
+    return Emphasis.Matches(text).Select(m => new StyledRange(m.Index, m.Length,
+        m.Value[0] == '`' ? new Style(Color.Yellow) : Style.Default.Bold()));
+}
+
+// ...
+Widget.TextArea().State(State).Highlight(Markdown).Block(Widget.Block()).Focused(ctx.Focused).Draw(buf, area);
+```
+
+The callback sees one line at a time. For something spanning lines, such as a fenced code block, work out which
+lines are inside one when the text changes (`TextAreaState.Changed`) and look the line up by its index.
+
 A dropdown is a component around a `SelectState`. The state opens a menu overlay, so it takes the `App`:
 
 ```csharp
