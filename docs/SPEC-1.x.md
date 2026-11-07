@@ -53,6 +53,7 @@ or add to them:
 | **28. Fixes from building apps from the docs** | `Buffer` renamed to `CellBuffer`; tree type-ahead and expander clicks, gauge label colors, text states leaving Alt+arrows, palette duplicates, toasts and the menu bar, status bar hints first, an `esc Back` hint, padded overlay titles, the harness and custom dialogs; `TextFieldState.Changed`, `ConfirmAsync(yesFirst)`. | 27 | §22 | **2.0.0** |
 | **29. Bar values, paragraph scrolling, checkbox and button states** | A short bar's value drawn above it instead of splitting it; `ScrollState.ScrollsHorizontally` for unwrapped paragraphs; `CheckboxState` and `ButtonState`. | 28 | §23 | 2.1.0 |
 | **30. Padding, selection by key, and wide bar values** | Blocks pad their content a column in from side borders by default; `Rows(items, format, key)` and `Items(items, format, key)` keep a list or table's selection on the same item when the items change (`SelectionState.SelectedKey`, `SelectKey`); bar values wider than their bar go above it, and values never touch or get cut. | 29 | §24 | 2.1.0 |
+| **31. Gaps found building MiniTui Desk apps** | `TextAreaState.Changed`; `App.OnQuitting` and `RequestQuit`, for Ctrl+C, SIGHUP and SIGTERM; `OverlayStack.PromptAsync`; a public `FilterListState` and `Widget.FilterList`; `TextAreaBuilder.Highlight`; toasts that wrap. | 30 | §25 | 2.2.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -5159,3 +5160,279 @@ Three PRs, one release (2.1.0, with Phase 29):
 1. **30a** (padding): §24.2, the widgets' highlight, the snapshot tests, the guides and the example.
 2. **30b** (selection by key): §24.3, the Widgets and Keys guides, the example's Services screen.
 3. **30c** (bar values): §24.4.
+
+---
+
+## 25. Gaps found building MiniTui Desk apps (Phase 31)
+
+### 25.1 Purpose
+
+MiniTui Desk ([minitui-org/desk](https://github.com/minitui-org/desk)) builds its apps on the published package,
+and lists what each one needed from MiniTui and didn't find as an issue here. Notes, the first app, found six
+(#74–#79). Each is a general gap, not something Desk needs alone: an editor that autosaves, an app with unsaved work
+when the terminal closes, a dialog asking for a name, a list narrowed by typing, highlighted text in an editor, and
+a message longer than a toast. Nothing here knows about Desk.
+
+All of it is additive, so this is **2.2.0**.
+
+### 25.2 `TextAreaState.Changed` (#74)
+
+```csharp
+public class TextAreaState
+{
+    /// Raised after the text changes: typing, deleting, pasting, cutting, indenting, undo and redo, or setting Text
+    /// to something else. Moving the cursor or the selection doesn't raise it.
+    public event EventHandler? Changed;
+}
+```
+
+- **As `TextFieldState.Changed`** (§22.4): once per change, after the state is consistent, so a handler can read
+  `Text`, `Cursor` and `CanUndo`.
+- **Setting `Text`** to the same text doesn't raise it (it still clears the history and moves the cursor). Comparing
+  is cheap there; the editing paths know whether they changed anything without comparing.
+- **Cost:** an edit already bumps the state's internal version; `Changed` is raised when the version moved, so a
+  key that changes nothing (an arrow, Backspace at the start) raises nothing.
+
+### 25.3 Asking before quitting (#75)
+
+Today Ctrl+C calls `Quit()` unless the focused text component copies with it (§10.4, §20.5), and SIGHUP and SIGTERM
+restore the terminal and let the process end. An app with unsaved work can't save it or ask first, short of taking
+Ctrl+C in every focusable component and registering its own signal handlers.
+
+```csharp
+public enum QuitReason
+{
+    /// Ctrl+C, or RequestQuit: the app can say no.
+    Requested,
+    /// The terminal went away: SIGHUP on Unix, the console window closing on Windows.
+    Hangup,
+    /// SIGTERM on Unix; logoff or shutdown on Windows.
+    Terminated,
+}
+
+public sealed class App
+{
+    /// Run on the UI thread before the app quits. For Requested, return false to keep running (to ask first, say no
+    /// and call Quit() once the user has answered). For Hangup and Terminated the process ends whatever it returns,
+    /// and the handler has 2 seconds.
+    public App OnQuitting(Func<QuitReason, bool> quitting);
+
+    /// Quit as Ctrl+C does: OnQuitting (with Requested) decides. Thread-safe.
+    public void RequestQuit();
+
+    public void Quit();   // unchanged: quits without asking
+}
+```
+
+- **Ctrl+C:** as now, the focused text component copies with it if it can; otherwise it calls `RequestQuit()`
+  instead of `Quit()`. The built-in `ctrl+c` entry in `App.Keys` (shown in help) does the same.
+- **`Quit()` doesn't ask**, so an app's own quit command can save and call it, or call `RequestQuit()` to go through
+  the same handler. Quitting when the last screen is popped and cancelling `RunAsync`'s token don't ask either: the
+  first is the app's own doing, the second its host's.
+- **Without a handler** nothing changes: `RequestQuit()` is `Quit()`.
+- **A handler that throws** goes to `OnError` as any callback's exception does (by default `Run()` rethrows it). It
+  isn't taken as a yes, so with an `OnError` that continues, the app keeps running; for the signals the process
+  ends as it would have.
+- **Signals:** the signal thread posts the handler to the UI thread and waits for it, at most 2 seconds, then
+  restores the terminal and lets the process end as now (so code after `Run()` still doesn't run, and the exit
+  status still shows the signal). After the handler the loop draws nothing more, so nothing lands on the shell's
+  screen. A loop that's blocked (a handler stuck, or the app busy in its own code) times out and
+  the process ends as before.
+- **The terminal closing** sends SIGCONT with SIGHUP, and redrawing for the SIGCONT can fail with an I/O error
+  before the SIGHUP is handled; until now that crashed the app with the unhandled `IOException`. An I/O error while
+  the console has hung up (`tcgetattr` fails with `EIO`) is now a hangup: the handlers run there and then, and the
+  SIGHUP that follows doesn't wait for them again. Apps without a handler no longer crash on a hangup either.
+- **While ending,** an exception from a handler or anything else goes to `OnError` but doesn't quit the loop or
+  rethrow from `Run()`, so the process ends by the signal, not by a crash.
+- **Nested apps** on the same console all get the signal, innermost first, in the same 2 seconds. An outer app whose
+  loop is waiting on a nested one's `Run()` on the same thread has its handler run by the nested loop after the
+  nested one's, since its own loop can't.
+- **While suspended** (`App.Suspend`, Ctrl+Z), a signal doesn't run the handler, since the loop is waiting on the
+  program it runs; the process ends at once, as now.
+- **SIGQUIT and SIGINT** (Ctrl+\ and a Ctrl+C sent from outside) are unchanged: SIGQUIT is for ending at once, and
+  Ctrl+C typed in the app arrives as a key, not a signal.
+- `ComponentHarness` gets the same behavior for `RequestQuit` and Ctrl+C; a test can call the handler's signal path
+  with `harness.Signal(QuitReason.Hangup)`.
+
+### 25.4 A text prompt (#76)
+
+```csharp
+public sealed class OverlayStack
+{
+    /// Ask for a line of text. Enter answers the text, Esc and closing the dialog answer null. validate, given the
+    /// text on Enter, returns a message to show under the field (keeping the dialog open), or null to accept it.
+    /// Awaited on the UI thread, the continuation runs there.
+    public Task<string?> PromptAsync(string title, string text = "", Func<string, string?>? validate = null,
+        string? placeholder = null);
+}
+
+public sealed class PromptDialog : Overlay   // public, as ConfirmDialog is
+{
+    public PromptDialog(string title, string text = "", Func<string, string?>? validate = null, string? placeholder = null);
+    public Task<string?> Result { get; }
+}
+```
+
+- **Looks like the confirm dialog:** a modal box with the title, a text field the width of the box (40 columns, or
+  the screen less 4 when narrower) with the cursor at the end of `text`, and `enter OK  esc Cancel` as hints.
+- **Validation:** the message is drawn under the field in `Theme.Error`, the box growing a row for it (wrapping to
+  at most 3 rows), and it goes when the text changes. `validate` runs only on Enter, so it can be slow-ish (a file
+  system check), and its exceptions go to `OnError` with the dialog left open.
+- The text is single-line; a paste with line breaks has them replaced by spaces, as `TextFieldState` does.
+
+### 25.5 A public filterable list (#77)
+
+The command palette and the filterable select share `FilterList` (§13.3, §13.6), internal. It's made public as a
+state and a widget, for use in a screen as well as an overlay.
+
+```csharp
+/// A row: the label the filter matches, muted text after it, a right-aligned hint, and a key that identifies it.
+public readonly record struct FilterRow(string Label, string? Detail = null, string? Hint = null, object? Key = null);
+
+public sealed class FilterListState
+{
+    public FilterListState(IEnumerable<FilterRow>? rows = null, string filter = "");
+
+    /// The filter line. Its text filters the rows.
+    public TextFieldState Filter { get; }
+
+    /// Replace the rows, keeping the selection on the row with the same Key if it still matches (otherwise the
+    /// best match), and filtering again.
+    public void SetRows(IEnumerable<FilterRow> rows);
+    public IReadOnlyList<FilterRow> Rows { get; }
+
+    /// Indexes into Rows that match, best first; all of them in order with an empty filter.
+    public IReadOnlyList<int> Matches { get; }
+
+    /// The selected row's index into Rows, or null when nothing matches.
+    public int? Selected { get; }
+    public void Select(int row);   // ignored unless it matches
+
+    /// ↑ ↓ PgUp PgDn and Ctrl+Home Ctrl+End move the selection; Esc clears a non-empty filter; any other key goes to
+    /// the filter line. Enter, Tab and Esc with an empty filter are left to the caller.
+    public bool HandleKey(ConsoleKeyInfo key);
+    public bool HandlePaste(string text);
+    /// Wheel, a click to select (raising Activated on a double-click), clicks and drags in the filter line.
+    public bool HandleMouse(MouseEvent mouse);
+
+    /// ↑ at the first row goes to the last, and ↓ at the last to the first. Off by default; the palette sets it.
+    public bool Wraps { get; set; }
+
+    /// Raised when the selection moves to another row, by a key, the mouse, filtering or SetRows.
+    public event EventHandler? SelectionChanged;
+    /// Raised on a double-click on a row (Enter is the caller's, as above).
+    public event EventHandler? Activated;
+}
+
+public static partial class Widget
+{
+    public static FilterListBuilder FilterList(FilterListState state);
+}
+
+public sealed class FilterListBuilder
+{
+    public FilterListBuilder Block(BlockBuilder? block);   // the divider under the filter line joins its borders
+    public FilterListBuilder Placeholder(string? text);    // in the empty filter line
+    public FilterListBuilder Empty(string text);           // when nothing matches; "No matches" by default
+    public FilterListBuilder Focused(bool focused = true); // the filter line's cursor, and the selection's style
+    public void Draw(CellBuffer buf, Rect area);
+}
+```
+
+- **The same matching and drawing as the palette** (fuzzy match, best score first, matched characters in bold, the
+  detail and hint muted, a scrollbar on the right border), so the palette and the filterable select become users of
+  the public type and look the same as now.
+- **Empty filter:** every row in its own order, not by score, so a list sorted by the app (newest first, say) stays
+  sorted until the user types.
+- **Home and End** go to the filter line, as in the palette; Ctrl+Home and Ctrl+End move the selection.
+- **The rows are the state's**, set with `SetRows` when the app's data changes, not passed at each draw, because
+  keys between draws filter them. With keys, a refresh keeps the selection on its item (as §24.3 does for lists).
+- `Sanitizer.SingleLine` applies to labels, details and hints, as now.
+
+### 25.6 Styled text in a text area (#78)
+
+```csharp
+/// A styled range on one line: from Start, Length UTF-16 code units, patched with Style.
+public readonly record struct TextSpan(int Start, int Length, Style Style);
+
+public sealed class TextAreaBuilder
+{
+    /// Style parts of each line, given its index and text. Called for the visible lines at each draw.
+    public TextAreaBuilder Highlight(Func<int, string, IEnumerable<TextSpan>> highlight);
+}
+```
+
+- **Drawn under** the search matches, the selection and the cursor, and over `Style(...)`, by patching the cell
+  styles (§4.3), so a span setting only a foreground color keeps the selection's background.
+- **Ranges are clamped** to the line and snapped outward to cluster boundaries; one that's off the line or empty is
+  ignored, so a highlighter that's a frame behind an edit can't throw or draw on the wrong cells of a wide character.
+- **Per line, not per text:** the callback gets one line at a time, so it can't see multi-line constructs (a fenced
+  code block) without its own state. It can keep that state from `TextAreaState.Changed` (§25.2) and the line index,
+  and must be fast: the guides show caching per line.
+- No built-in highlighters (Markdown, C#); the guides have a small Markdown one as the example.
+
+### 25.7 Long toasts wrap (#79)
+
+- **Wrapped:** a toast's text wraps at word boundaries (as `Paragraph` does) within the 60-column box, up to 3 lines,
+  the box growing to fit; only a message longer than 3 lines is cut, with `…` at the end of the third.
+- **Narrower than 60:** the box is as wide as the longest wrapped line, so a short toast looks as now.
+- **Line breaks** in the text start a new line, where they're now replaced by spaces.
+- Toasts stack as now, each as tall as its text; one that doesn't fit below those above it waits.
+
+### 25.8 Tests
+
+- **`Changed`:** raised once for typing, Backspace, Delete, Enter, paste, cut, indent and outdent, undo, redo and
+  `Text`; not for moves, selection, a no-op Backspace or the same `Text`.
+- **Quitting:** Ctrl+C and `RequestQuit` call the handler and stay on false; copying with a selection doesn't call
+  it; `Quit()`, popping the last screen and `RunAsync`'s token don't; a throwing handler goes to `OnError` and keeps
+  the app; `harness.Signal` runs it with the reason and ends the loop whatever it returns. A child process gets
+  through the signal path in-process: the handler runs on the UI thread and nothing is drawn after it, a stuck
+  handler holds the signal 2 seconds at most, apps without a handler don't hold it, nested apps' handlers run
+  innermost first, and an I/O error after a hangup is one. Real signals by hand, below: SIGTERM, SIGHUP
+  and closing the terminal, with the exit status.
+- **Prompt:** Enter answers the text, Esc null; a validation message keeps it open and clears on typing; snapshots
+  at 80 columns and at a narrow width.
+- **Filter list:** the palette's and select's existing tests unchanged; empty filter keeps order; `SetRows` keeps
+  the selection by key and falls back to the best match; `Wraps`; `SelectionChanged` and `Activated`; snapshots
+  with and without a block, focused and not.
+- **Highlight:** spans patched under selection and matches; clamped and off-line spans; wide characters.
+- **Toasts:** one, two and three lines, over three cut, a line break, stacking with different heights.
+
+Manual QA: a small app whose handler writes a file, in tmux: `kill -TERM` (exit 143), `kill -HUP` (129), a
+stuck handler, Ctrl+C refused then allowed, and closing the session (the real hangup); Notes in MiniTui Desk against a local 2.2.0 package, with its workarounds removed (§25.11); the example's
+screens; Windows Terminal and conhost for the console window closing (Windows-only code, listed in the PR).
+
+### 25.9 Migration impact
+
+- **Changed:** Ctrl+C calls `OnQuitting` first, but only for apps that set one. Toasts longer than a line wrap
+  instead of being cut, and a line break in one starts a new line. `FilterList`'s move to public changes nothing
+  in the palette or select.
+- New API in `PublicAPI.Unshipped.txt`. Nothing removed.
+
+### 25.10 Out of scope
+
+- Cancelling SIGTERM or a hangup (keeping the process alive): the terminal is gone for a hangup, and a service
+  manager expects SIGTERM to end the process.
+- Multi-line prompts, a prompt with a list of suggestions (a `FilterList` in an overlay does that), and async
+  validation.
+- Built-in syntax highlighters; folding; multi-line spans.
+- Toasts with actions or that stay until dismissed.
+
+### 25.11 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Make Ctrl+C an ordinary key binding that screens can override, instead of a handler? | **A handler**: bindings would cover Ctrl+C but not the signals, and an app would still need one place to save from both. |
+| 2 | On a hangup or SIGTERM, end the process after the handler as now, or let `Run()` return? | **End it as now**, so the exit status shows the signal and nothing runs against a terminal that's gone. |
+| 3 | The time limit for the handler on a signal: fixed, or set by the app? | **Fixed at 2 seconds**: Windows allows about 5 for a closing console, and the limit only stops a stuck handler from keeping a closed window's process alive. |
+| 4 | `FilterListState`'s rows: owned by the state (`SetRows`), or passed at each draw as lists are? | **Owned by the state**: keys filter between draws, and a refresh with keys keeps the selection. |
+| 5 | How many lines can a toast take? | **3**: a long message is readable, and a toast still doesn't cover much of the screen. |
+| 6 | Release when? | **2.2.0 after 31d**; then Desk moves its apps to it and removes the workarounds. |
+
+### 25.12 Implementation order
+
+Four PRs, one release (2.2.0):
+1. **31a** (quitting and editor changes): §25.2 and §25.3, with this spec.
+2. **31b** (prompt and toasts): §25.4 and §25.7.
+3. **31c** (filter list): §25.5, the palette and select moved onto it.
+4. **31d** (highlighting): §25.6, with a Markdown example in the guides.

@@ -22,8 +22,26 @@ App.Create()
     .Run();                                    // Or await .RunAsync()
 ```
 
-Ctrl+C always quits (unless `OnKey` takes it). An app uses either a `Render` callback or `Screens`;
-`Overlays` (dialogs) and `Toasts` work with both.
+Ctrl+C quits (unless `OnKey` takes it, or the focused text field copies with it). An app uses either a `Render`
+callback or `Screens`; `Overlays` (dialogs) and `Toasts` work with both.
+
+An app with unsaved work sets `OnQuitting`, which runs on the UI thread before Ctrl+C or `app.RequestQuit()` quits,
+and before the process ends on SIGTERM or when the terminal closes (SIGHUP, or the console window on Windows):
+
+```csharp
+app.OnQuitting(reason =>
+{
+    if (document.TrySave()) return true;
+    // Saving failed: stay, unless the process is ending anyway (reason is Hangup or Terminated)
+    app.Toasts.Push("Not saved, so still open", ToastLevel.Error);
+    return false;
+});
+```
+
+For Ctrl+C and `RequestQuit` (`QuitReason.Requested`), returning false keeps the app running; to ask first, return
+false, show `ConfirmAsync`, and call `app.Quit()` on a yes. For a signal the process ends whatever the handler
+returns, and it has 2 seconds. `app.Quit()` never asks, so an app's own quit command can call `RequestQuit()` to go
+through the same handler.
 
 From any thread, `app.Post(action)` runs code on the UI thread, `app.RequestRedraw()` asks for a
 frame and `app.Quit()` stops the loop. `app.RunTask(ct => WorkAsync(ct))` starts async work whose

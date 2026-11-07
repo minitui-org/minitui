@@ -1,1 +1,9 @@
 #nullable enable
+MiniTui.App.OnQuitting(System.Func<MiniTui.QuitReason, bool>! quitting) -> MiniTui.App!
+MiniTui.App.RequestQuit() -> void
+MiniTui.QuitReason
+MiniTui.QuitReason.Hangup = 1 -> MiniTui.QuitReason
+MiniTui.QuitReason.Requested = 0 -> MiniTui.QuitReason
+MiniTui.QuitReason.Terminated = 2 -> MiniTui.QuitReason
+MiniTui.TextAreaState.Changed -> System.EventHandler?
+MiniTui.ComponentHarness.Signal(MiniTui.QuitReason reason) -> void

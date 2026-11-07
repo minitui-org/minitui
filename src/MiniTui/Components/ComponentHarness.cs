@@ -175,6 +175,17 @@ public sealed class ComponentHarness : IDisposable
         ThrowIfFailed();
     }
 
+    /// <summary>
+    /// Deliver a hangup or SIGTERM as the signal would (1.x spec §25.3): the <see cref="App.OnQuitting"/> handler runs
+    /// with <paramref name="reason"/>, and then the app stops, whatever it returned.
+    /// </summary>
+    public void Signal(QuitReason reason)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        App.SignalForTest(reason);
+        RunUntilIdle();
+    }
+
     /// <summary>Stop the app: screens and overlays stay mounted, but loads are cancelled through <see cref="App.Stopping"/>.</summary>
     public void Dispose()
     {

@@ -86,7 +86,9 @@ void Submit()
 ```
 
 `TextFieldState.Changed` fires after the text changes (typing, deleting, pasting, undo, or setting `Text`), to
-validate or filter as the user types. `SelectState` has `Changed` too.
+validate or filter as the user types. `TextAreaState.Changed` does the same for a text area (and indenting), to
+autosave or mark a document as modified; moving the cursor or the selection doesn't raise either. `SelectState` has
+`Changed` too.
 
 A checkbox keeps its value in a [`CheckboxState`](xref:MiniTui.CheckboxState) and a button its presses in a
 [`ButtonState`](xref:MiniTui.ButtonState); the widget draws from the state and records where it was drawn, so the

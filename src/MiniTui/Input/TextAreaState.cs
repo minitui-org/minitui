@@ -45,6 +45,7 @@ public class TextAreaState
     private readonly TextFieldState _find = new();
     private TextPosition _findStart;
     private int _version;
+    private int _notifiedVersion;
     private (int Version, string Pattern, List<TextMatch> Matches)? _matches;
 
     /// <summary>Create a state with optional initial text. The cursor starts at the end.</summary>
@@ -64,6 +65,7 @@ public class TextAreaState
         get => string.Join('\n', _lines);
         set
         {
+            var before = Changed is null ? null : Text;
             _lines.Clear();
             _lines.Add("");
             _line = 0;
@@ -72,9 +74,16 @@ public class TextAreaState
             _pendingHighSurrogate = null;
             _history.Clear();
             InsertNormalized(value ?? "");
+            if (before is not null && string.Equals(before, Text, StringComparison.Ordinal)) _notifiedVersion = _version;
             Moved();
         }
     }
+
+    /// <summary>
+    /// Raised after the text changes (1.x spec §25.2): typing, deleting, pasting, cutting, indenting, undo and redo, or
+    /// setting <see cref="Text"/> to something else. Moving the cursor or the selection doesn't raise it.
+    /// </summary>
+    public event EventHandler? Changed;
 
     /// <summary>The lines, without line breaks. Never empty: empty text is one empty line.</summary>
     public IReadOnlyList<string> Lines => _readOnlyLines;
@@ -670,10 +679,14 @@ public class TextAreaState
     }
 
     // A horizontal move, edit or click: the goal column resets and the view follows the cursor
+    // Every edit ends here, after the state is consistent, so this is where Changed is raised
     private void Moved()
     {
         _goalColumn = null;
         FollowCursor = true;
+        if (_version == _notifiedVersion) return;
+        _notifiedVersion = _version;
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     // ↑ ↓ PgUp PgDn: by wrapped row, keeping the goal column; past the first or last row, to the start or end
