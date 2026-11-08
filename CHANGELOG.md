@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `Paragraph.Wrap(text, width, wrap)` returns the rows a paragraph draws, with their styles and alignment, without drawing them, beside `Paragraph.MeasureLines` (#91).
+
 ## [2.3.0] - 2026-11-07
 
 MiniTui 2.3: help while typing. F1 opens help as well as `?`, so it works while a text field has focus, and hints show keys that can fire.
