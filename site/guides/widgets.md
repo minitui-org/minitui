@@ -34,6 +34,7 @@ Widget.Table()
 | `TextField()`, `CommandLine()` | Single-line input from [`TextFieldState`](xref:MiniTui.TextFieldState) / [`CommandLineState`](xref:MiniTui.CommandLineState), scrolled by display width, with the terminal cursor shown. |
 | `TextArea()` | Multi-line input from [`TextAreaState`](xref:MiniTui.TextAreaState): `Wrap(WrapMode.Word/Char/None)` (word by default; `None` scrolls sideways), `Placeholder`, `Block`, `LineNumbers()` (a gutter), `Highlight(callback)` (colored ranges per line). Scrolls to keep the cursor visible; with a block, a draggable scrollbar on its right border when the text doesn't fit. |
 | `FilterList(state)` | A list narrowed by typing, from a [`FilterListState`](xref:MiniTui.FilterListState): the filter line (with a muted `Placeholder`), a divider joining the `Block`'s borders, and the matching rows with the matched characters in bold, each row's detail and hint muted, `Empty(text)` when nothing matches, and a scrollbar when they don't fit. The command palette is one. |
+| `Markdown(state)` | Markdown from a [`MarkdownState`](xref:MiniTui.MarkdownState), formatted and wrapped to the area: headings, emphasis, code, links, lists with check boxes, quotes, rules and tables in columns, with a scrollbar, `Empty(text)` when there's nothing to show, a `Block` and `Focused`. See [Markdown](#markdown). |
 | `Select()` | A dropdown field from [`SelectState`](xref:MiniTui.SelectState): the chosen option (or a muted `Placeholder`) and a ▼. Opening it shows a [`PopupMenu`](xref:MiniTui.PopupMenu) of the options below the field; with `SelectState.Filterable`, a dropdown with a filter line, which typing on the field opens. |
 | `TabBar()` | `Tabs(...)` with [`TabBarState`](xref:MiniTui.TabBarState), scrolled to keep the selected tab visible. |
 | `Tree(state)` | The expanded part of a `TreeState<T>`'s tree, with ▸/▾ expanders, `Indent(n)` or `Guides()` (│ ├─ └─), `Format(node => line)`, `HighlightSymbol`, `Title`. See [Trees](keys-and-state.md#trees). |
@@ -117,6 +118,30 @@ Spinners and visible toasts make the app tick (every 100 ms and 250 ms) even wit
 and only while they're drawn. `toasts.Push(text, ToastLevel.Error)` is thread-safe; each toast shows
 for 4 seconds (or the `duration` you pass) from when it first appears. A long message wraps at words, up to 3
 lines in a box up to 60 columns wide, and a line break in it starts a new line.
+
+## Markdown
+
+```csharp
+var doc = new MarkdownState(File.ReadAllText("README.md"));
+doc.Scroll.Selectable = true;                 // the mouse selects text, as in a paragraph
+
+// In a component
+public override bool HandleKey(ConsoleKeyInfo key) => doc.HandleKey(key);
+public override bool HandleMouse(MouseEvent mouse) => doc.HandleMouse(mouse);
+public override bool HasSelection => doc.HasSelection;    // Ctrl+C copies rather than quits
+public override void Render(CellBuffer buf, Rect area, RenderContext ctx) =>
+    Widget.Markdown(doc).Block(Widget.Block().Title(" README ")).Focused(ctx.Focused).Draw(buf, area);
+```
+
+By default the keys scroll. With `doc.BlockCursor = true`, a bar marks a highlighted block (a heading, a
+paragraph, a list item, a code block or a table): ↑ ↓ move it, Shift+↑ ↓ stretch it over several, PgUp PgDn and
+the wheel bring it along, and a click moves it. `Highlight` and `HighlightChanged` say where it is,
+`HighlightedSource` gives its lines as written and `HighlightedText` as shown, and Ctrl+C copies it. `PlainText`
+shows the source as written instead, a block per paragraph. Headings, code and links use `Theme.Heading`,
+`Theme.Code` and `Theme.Link`.
+
+The Markdown is a subset of CommonMark plus GitHub's tables and task lists; HTML and link reference definitions
+are shown as written.
 
 ## Box styles
 

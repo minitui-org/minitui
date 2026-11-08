@@ -5526,7 +5526,7 @@ Everything is added and nothing removed, so this is **2.4.0**.
 | PR | Issue | Section |
 |---|---|---|
 | **33a** | #91 Wrapping styled text into rows is internal | §27.2 |
-| **33b** | #89 No Markdown widget | added by its PR |
+| **33b** | #89 No Markdown widget | §27.3 |
 | **33c** | #90 Paragraph text can only be selected with the mouse | added by its PR |
 | **33d** | #88 Filter list rows can't be styled, if it stays small; otherwise later | added by its PR |
 
@@ -5545,3 +5545,68 @@ Everything is added and nothing removed, so this is **2.4.0**.
 - **Tests:** words, characters, line breaks and indents, wide characters, styles and alignment across rows, no
   wrapping, and a property test that for random text and widths the rows are the ones a paragraph draws and as many
   as `MeasureLines` says.
+
+### 27.3 Markdown (33b)
+
+**Decisions** (asked one at a time):
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | How much does MiniTui own? | **A state and a widget**, as lists, trees and text areas: `MarkdownState` and `Widget.Markdown(state)`. |
+| 2 | Where do heading, code and link colors come from? | **New theme roles** `Heading`, `Code` and `Link`, set in every built-in theme. |
+| 3 | Which Markdown? | **Reader's subset plus tables** drawn in columns. Full CommonMark is a TODO. |
+| 4 | Do the keys move a block highlight? | **Opt-in**: the keys scroll, and `BlockCursor = true` makes them move a highlighted block. |
+
+**`MarkdownState`:**
+- `new MarkdownState(source)`; `Source` (setting it parses again, scrolls to the top and highlights the first
+  block); `PlainText` (each run of non-blank lines a block, as written). Tabs are spaces to the next multiple of 4,
+  and `\r\n` is a line break.
+- `Blocks`: `MarkdownBlock(Kind, FirstLine, LastLine)` with `Level` for headings, top to bottom. `MarkdownBlockKind`
+  is `Heading`, `Paragraph` (a list item's text too), `Code`, `Rule`, `Table` and `Verbatim`. A block's lines are
+  where it came from in the source, so it can be quoted as written.
+- `Scroll`: a `ScrollState`; its `Selectable` lets the mouse select text as shown.
+- `BlockAt(row)` and `RowsOf(block)` map the rows drawn last to blocks, null before drawing or for a blank row.
+- `BlockCursor`, `Highlight` (first and last block, null without the cursor or blocks), `HighlightChanged`,
+  `SetHighlight(block)` and `SetHighlight(first, last)` (clamped, and scrolled into view when next drawn),
+  `HighlightedSource` (the source lines, less their shared indentation) and `HighlightedText` (the rows as shown).
+- `HasSelection`: a mouse selection or a highlight, for `Component.HasSelection`, so Ctrl+C copies.
+- `HandleKey`: without the block cursor, `ScrollState.HandleKey`. With it, ↑ ↓ k j move the highlight a block,
+  Shift+↑ ↓ stretch it, PgUp PgDn scroll a page and highlight the first block in view, Home End the first and last
+  block. Ctrl+C and Ctrl+Insert copy a mouse selection, otherwise the highlight as shown; with `Selectable`,
+  Ctrl+A and Esc work as in a paragraph.
+- `HandleMouse`: as `ScrollState.HandleMouse`; with the block cursor, a click highlights the block under it, and a
+  highlight scrolled out of view moves to the nearest block in view.
+
+**`Widget.Markdown(state)`:** `Block`, `Focused` (the block's border, and the bar in `BorderFocused` rather than
+`Border`), `Empty(text)` (muted, when there are no blocks), `Draw`. The text wraps to the area less a column for
+the scrollbar, and with the block cursor less 2 columns for a `▌` bar beside the highlighted rows. Laid out again
+when the width or theme changes.
+
+**Formatting** (Reader's, desk spec §13.10, moved here):
+- Headings without their marks in `Theme.Heading`, levels 1 and 2 underlined with `═` and `─`, deeper levels bold.
+- Paragraph lines joined and wrapped at words, two trailing spaces or a `\` breaking a line.
+- `*em*`, `**strong**`, `***both***`, `~~struck~~`, `` `code` `` in `Theme.Code`, `[links](url)` and `<autolinks>`
+  in `Theme.Link`, images as `[image: alt]` muted, backslash escapes; a mark with nothing to close it is text, and
+  `_` inside a word isn't emphasis.
+- Lists with `•` or their number, task boxes as `☐` `☑`, wrapped lines under the text, nested lists indented.
+- Quotes with a muted `│ ` bar per level. Fenced and indented code as written in `Theme.Code`, 2 columns in,
+  broken at the edge. Rules as a muted line. Front matter hidden.
+- **Tables** (new): a header row, a delimiter row with as many cells (`:--`, `:-:`, `--:` for left, center and
+  right), then rows to a blank line or another block; outer pipes optional and `\|` a pipe in a cell. Columns are
+  as wide as their widest cell, separated by a muted ` │ `, the header in `Theme.TableHeader` over a `─┼─` rule.
+  A row's extra cells are dropped and missing ones empty. Too wide, the narrow columns keep their width and the
+  rest share what's left, cells wrapping at words; too narrow for 3 columns each, the lines as written.
+- Blank rows between blocks, except between list items with none between them in the source. Anything else
+  (HTML, link reference definitions, pipes without a delimiter row) is shown as written, so nothing is lost.
+
+**Theme:** `Heading`, `Code` and `Link`. Default: yellow bold, green, cyan underlined. Dark and Light: their
+title color bold, their info teal, and a blue or purple underlined. Monochrome: bold, dim, underlined.
+
+**Tests:** Reader's formatting tests, moved; tables (columns, alignment, no outer pipes, escaped pipes, cell
+counts, wrapping, too narrow, column fitting, pipes that aren't a table); the state (drawing, empty text, block,
+scrollbar, tabs, scrolling without the cursor, the cursor's keys and bar colors, keeping it in view, clicks and the
+wheel, highlighted source and text, copying, a new source, plain text, lookups before drawing); the theme roles;
+and the W1 and W2 sweeps.
+
+**Out of scope:** full CommonMark (TODO.md), syntax highlighting in code blocks, following links, images, and a
+maximum width (an app narrows the area).

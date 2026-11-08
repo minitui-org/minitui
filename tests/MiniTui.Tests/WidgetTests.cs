@@ -34,6 +34,9 @@ public class WidgetSweepTests
             .XAxis(new Axis { Title = "x 日本" }).YAxis(new Axis { Title = "y", Labels = ["lo", "\x1bhi"] }).Block(Widget.Block()).Draw(b, r),
         ["BarChart"] = (b, r) => Widget.BarChart().Bars(new Bar("日本", 3), new Bar("b\x1b", 1), new Bar("c", -1)).Block(Widget.Block()).Draw(b, r),
         ["BarChartH"] = (b, r) => Widget.BarChart().Direction(Direction.Horizontal).Bars(new Bar("日本語", 3) { ValueText = "\x1b3" }, new Bar("b", 1.5)).Draw(b, r),
+        ["Markdown"] = (b, r) => Widget.Markdown(new MarkdownState("# 日本\n\n- a **b** \x1b[31m\n\n| x | y |\n|---|--:|\n| 1 | 😀 |\n\n```\ncode\n```") { BlockCursor = true })
+            .Block(Widget.Block()).Focused().Draw(b, r),
+        ["MarkdownEmpty"] = (b, r) => Widget.Markdown(new MarkdownState()).Empty("Nothing \x1b here").Draw(b, r),
         ["Spinner"] = (b, r) => Widget.Spinner().Label("Loading").Draw(b, r),
         ["Toasts"] = (b, r) =>
         {

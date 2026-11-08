@@ -79,6 +79,12 @@ public sealed record Theme
     public Style Error { get; init; }
     /// <summary>Informational messages.</summary>
     public Style Info { get; init; }
+    /// <summary>Headings in Markdown (1.x spec §27.3).</summary>
+    public Style Heading { get; init; }
+    /// <summary>Inline code and code blocks in Markdown (1.x spec §27.3).</summary>
+    public Style Code { get; init; }
+    /// <summary>Links in Markdown (1.x spec §27.3).</summary>
+    public Style Link { get; init; }
     /// <summary>
     /// The styles of chart datasets without their own, in order, wrapping around (1.x spec §8.2). Default: cyan,
     /// yellow, magenta, green, blue, red.
@@ -119,6 +125,9 @@ public sealed record Theme
         Warning = new Style(Color.Yellow),
         Error = new Style(Color.Red),
         Info = new Style(Color.Cyan),
+        Heading = new Style(Color.Yellow).Bold(),
+        Code = new Style(Color.Green),
+        Link = new Style(Color.Cyan).Underlined(),
     };
 
     /// <summary>
@@ -158,6 +167,9 @@ public sealed record Theme
         Warning = new Style(Rgb("#FFC66D")),
         Error = new Style(Rgb("#F2777A")),
         Info = new Style(Rgb("#66CCCC")),
+        Heading = new Style(Rgb("#FFC66D")).Bold(),
+        Code = new Style(Rgb("#66CCCC")),
+        Link = new Style(Rgb("#5FA8FF")).Underlined(),
         ChartSeries =
         [
             new Style(Rgb("#66CCCC")), new Style(Rgb("#FFC66D")), new Style(Rgb("#C594C5")),
@@ -202,6 +214,9 @@ public sealed record Theme
         Warning = new Style(Rgb("#9A6700")),
         Error = new Style(Rgb("#CF222E")),
         Info = new Style(Rgb("#1B7C83")),
+        Heading = new Style(Rgb("#0B5CAD")).Bold(),
+        Code = new Style(Rgb("#1B7C83")),
+        Link = new Style(Rgb("#8250DF")).Underlined(),
         ChartSeries =
         [
             new Style(Rgb("#1B7C83")), new Style(Rgb("#9A6700")), new Style(Rgb("#8250DF")),
@@ -243,6 +258,9 @@ public sealed record Theme
         Warning = Style.Default.Bold(),
         Error = Style.Default.Bold().Underlined(),
         Info = Style.Default,
+        Heading = Style.Default.Bold(),
+        Code = Style.Default.Dim(),
+        Link = Style.Default.Underlined(),
         ChartSeries = [Style.Default],
     };
 
