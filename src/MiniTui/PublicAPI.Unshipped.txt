@@ -1,1 +1,2 @@
 #nullable enable
+static MiniTui.Paragraph.Wrap(MiniTui.Text! text, int width, MiniTui.WrapMode wrap) -> System.Collections.Generic.IReadOnlyList<MiniTui.Line!>!

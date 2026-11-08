@@ -30,6 +30,17 @@ public static class Paragraph
         ArgumentNullException.ThrowIfNull(text);
         return TextWrap.Wrap(text, width, wrap).Count;
     }
+
+    /// <summary>
+    /// The rows <paramref name="text"/> wraps to at <paramref name="width"/> columns: the same rows, with the same styles
+    /// and alignment, that <see cref="ParagraphBuilder"/> draws. With <see cref="WrapMode.None"/> or a width of 0 or
+    /// less, the lines are returned as they are.
+    /// </summary>
+    public static IReadOnlyList<Line> Wrap(Text text, int width, WrapMode wrap)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return TextWrap.Wrap(text, width, wrap);
+    }
 }
 
 /// <summary>

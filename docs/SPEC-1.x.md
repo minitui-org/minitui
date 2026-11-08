@@ -55,6 +55,7 @@ or add to them:
 | **30. Padding, selection by key, and wide bar values** | Blocks pad their content a column in from side borders by default; `Rows(items, format, key)` and `Items(items, format, key)` keep a list or table's selection on the same item when the items change (`SelectionState.SelectedKey`, `SelectKey`); bar values wider than their bar go above it, and values never touch or get cut. | 29 | §24 | 2.1.0 |
 | **31. Gaps found building MiniTui Desk apps** | `TextAreaState.Changed`; `App.OnQuitting` and `RequestQuit`, for Ctrl+C, SIGHUP and SIGTERM; `OverlayStack.PromptAsync`; a public `FilterListState` and `Widget.FilterList`; `TextAreaBuilder.Highlight`; toasts that wrap. | 30 | §25 | 2.2.0 |
 | **32. Help while typing** | F1 opens help as well as `?`, so it works while a text field has focus; hints show a key that can fire. | 31 | §26 | 2.3.0 |
+| **33. Markdown and wrapping** | `Paragraph.Wrap`, a paragraph's rows without drawing; a Markdown widget; a keyboard caret for selecting paragraph text; styled filter list rows. Gaps found building MiniTui Desk's Reader and Tasks. | 32 | §27 | 2.4.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -5509,3 +5510,38 @@ Manual QA: Notes in MiniTui Desk against a local 2.3.0 package: F1 from the list
 ### 26.8 Implementation order
 
 One PR with this spec, then the release.
+
+
+## 27. Markdown and wrapping (Phase 33)
+
+### 27.1 Purpose
+
+MiniTui Desk's Reader shows Markdown formatted, and to do it had to write its own formatter (#89) and its own
+styled-text wrapping (#91), and could only offer a block highlight where a keyboard user wants to select text
+(#90). Its Tasks app wanted rows of a filter list styled (#88). Each is a gap any app could hit, so they move into
+MiniTui and Reader drops its copies.
+
+Everything is added and nothing removed, so this is **2.4.0**.
+
+| PR | Issue | Section |
+|---|---|---|
+| **33a** | #91 Wrapping styled text into rows is internal | §27.2 |
+| **33b** | #89 No Markdown widget | added by its PR |
+| **33c** | #90 Paragraph text can only be selected with the mouse | added by its PR |
+| **33d** | #88 Filter list rows can't be styled, if it stays small; otherwise later | added by its PR |
+
+33b–33d each add their section here with their decisions, asked one at a time.
+
+### 27.2 `Paragraph.Wrap` (33a)
+
+- `Paragraph.Wrap(Text text, int width, WrapMode wrap)` returns `IReadOnlyList<Line>`: the rows a
+  `ParagraphBuilder` with that wrap mode draws at that width, beside `Paragraph.MeasureLines`, which is their count.
+- Each row keeps its spans' styles, split where the row breaks, and its line's alignment. Alignment is applied at
+  drawing, so a row is never padded.
+- The rules are the paragraph's (§8.3 of the 1.0 spec): words break at whitespace, a word wider than the row breaks
+  anywhere, a line's first row keeps its leading whitespace and later rows drop it, wide characters take two columns,
+  and a character wider than the whole row is dropped.
+- With `WrapMode.None`, or a width of 0 or less, the lines come back as they are.
+- **Tests:** words, characters, line breaks and indents, wide characters, styles and alignment across rows, no
+  wrapping, and a property test that for random text and widths the rows are the ones a paragraph draws and as many
+  as `MeasureLines` says.
