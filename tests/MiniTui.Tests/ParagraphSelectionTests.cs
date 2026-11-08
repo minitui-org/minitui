@@ -296,6 +296,27 @@ public sealed class ParagraphSelectionTests : IDisposable
         Assert.DoesNotContain(harness.Lines, l => l.Contains("Disk on fire", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void AMessageDialogsText_CanBeSelectedWithTheCaret_AndEscHidesItBeforeClosing()
+    {
+        var screen = new Log();
+        using var harness = new ComponentHarness(screen, 40, 12);
+        harness.RunUntilIdle();
+        _ = harness.App.Overlays.ShowMessageAsync("Error", "Disk on fire");
+        harness.RunUntilIdle();
+
+        harness.Press("f7");
+        harness.Press("shift+end");
+        harness.Press("ctrl+c");
+        Assert.Equal("Disk on fire", Clipboard.GetText());
+        Assert.True(harness.App.IsRunning);
+        harness.Press("esc"); // the selection
+        harness.Press("esc"); // the caret
+        Assert.Contains(harness.Lines, l => l.Contains("Disk on fire", StringComparison.Ordinal));
+        harness.Press("esc");
+        Assert.DoesNotContain(harness.Lines, l => l.Contains("Disk on fire", StringComparison.Ordinal));
+    }
+
     // Esc in the text states (1.x spec §10.3)
 
     [Fact]
