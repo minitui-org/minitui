@@ -123,11 +123,15 @@ internal static class KeyRouter
         return result;
     }
 
-    /// <summary>Hints for the bindings in scope that show in hints, innermost first, each key once.</summary>
+    /// <summary>
+    /// Hints for the bindings in scope that show in hints, innermost first, each key once. Each shows its first key
+    /// that can fire now: while the focus captures text, an outer binding's plain characters can't (1.x spec §26.3).
+    /// </summary>
     public static string Hints(App app, int maxWidth)
     {
         var hints = new List<string>();
         var visible = Visible(app);
+        var capture = Chain(app) is [.., var focused] && focused.CapturesText;
         var escBound = visible.Any(g => g.Entries.Any(e => e.Entry.Bindings.Contains(Escape)));
         // Without an overlay, the last group is Global
         var global = app.Overlays.Any ? -1 : visible.Count - 1;
@@ -138,7 +142,11 @@ internal static class KeyRouter
             foreach (var (entry, keys) in visible[g].Entries)
             {
                 if (!entry.ShowInHints) continue;
-                var hint = $"{keys.Split(", ")[0]} {entry.Description}";
+                // Group 0 is the focused component, whose own plain-character bindings still fire
+                var key = keys.Split(", ").FirstOrDefault(label =>
+                    g == 0 || !capture || !entry.Bindings[Array.IndexOf(entry.Labels, label)].IsPlainCharacter);
+                if (key is null) continue;
+                var hint = $"{key} {entry.Description}";
                 if (!hints.Contains(hint)) hints.Add(hint);
             }
         }

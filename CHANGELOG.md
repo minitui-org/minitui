@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- F1 opens help as well as `?`, so it works while a text field or text area has focus, where `?` is typed. An app that binds F1 itself keeps it. Help lists `?, f1`, and F1 closes it (#85).
+- While a text field has focus, hints show a key that can fire: `f1 Help` instead of `? Help`, a binding's second key when its first is a plain character, and nothing for a binding whose only key would be typed.
+
 ## [2.2.0] - 2026-11-07
 
 MiniTui 2.2: gaps found building MiniTui Desk's apps. Apps can save before quitting, on Ctrl+C, a hangup or SIGTERM; text areas report changes and can color parts of their text; a text prompt dialog; the palette's filterable list is public; and long toasts wrap.

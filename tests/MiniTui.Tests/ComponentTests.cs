@@ -442,7 +442,7 @@ public class HintsAndHelpTests
                 "  r       Refresh",
                 "",
                 "Global",
-                "  ?       Help",
+                "  ?, f1   Help",
                 "  ctrl+c  Quit",
             ],
             KeyRouter.HelpLines(harness.App));

@@ -54,7 +54,7 @@ public partial class App
         Screens = new ScreenStack(this);
         Overlays = new OverlayStack(this);
         Keys = new KeyMap()
-            .Add("?", "Help", Overlays.ShowHelp)
+            .Add("?,f1", "Help", Overlays.ShowHelp)    // 1.x spec §26.2: F1 still works while typing
             .Add("ctrl+c", "Quit", RequestQuit, showInHints: false);
     }
 
@@ -109,7 +109,7 @@ public partial class App
 
     /// <summary>
     /// Global key bindings, tried after the focus chain when screens are used (§9.4).
-    /// Built in: <c>?</c> shows help and <c>ctrl+c</c> quits.
+    /// Built in: <c>?</c> and <c>f1</c> show help, F1 also while a text field has focus, and <c>ctrl+c</c> quits.
     /// </summary>
     public KeyMap Keys { get; }
 

@@ -28,7 +28,7 @@ progress bars, a dashboard, a command line and tabs, plus:
   with refresh and cancellation, a detail screen (Enter), delete with a confirm dialog (`d`) and error toasts.
 - **Widgets**: every widget on one screen, a theme toggle (`t`) and a Unicode sample panel.
 
-Esc or `q` goes back, `?` lists the keys for the current screen, and Ctrl+C quits.
+Esc or `q` goes back, `?` or F1 lists the keys for the current screen, and Ctrl+C quits.
 
 ## A small app
 

@@ -69,7 +69,7 @@ dotnet run --project src/MiniTui.Example
 ```
 
 The example app has a demo of each feature: lists, forms, a dashboard, charts, an editor, trees, split panes, an
-async service table and every widget on one screen. Esc or `q` goes back, `?` lists the keys, and Ctrl+C quits.
+async service table and every widget on one screen. Esc or `q` goes back, `?` or F1 lists the keys, and Ctrl+C quits.
 
 ## Project Structure
 

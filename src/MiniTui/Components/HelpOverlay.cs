@@ -2,7 +2,7 @@ namespace MiniTui;
 
 /// <summary>
 /// The key bindings in scope, grouped by component (§9.5). Shown by <see cref="OverlayStack.ShowHelp"/>
-/// and the built-in <c>?</c> binding. <c>?</c>, <c>q</c>, Enter or Esc closes it.
+/// and the built-in <c>?</c> and <c>f1</c> bindings. <c>?</c>, F1, <c>q</c>, Enter or Esc closes it.
 /// </summary>
 public sealed class HelpOverlay : Overlay
 {
@@ -21,7 +21,7 @@ public sealed class HelpOverlay : Overlay
     /// <inheritdoc/>
     public override bool HandleKey(ConsoleKeyInfo key)
     {
-        if (key.Key == ConsoleKey.Enter || key.KeyChar is '?' or 'q')
+        if (key.Key == ConsoleKey.Enter || (key.Key == ConsoleKey.F1 && key.Modifiers == 0) || key.KeyChar is '?' or 'q')
         {
             Close();
             return true;
