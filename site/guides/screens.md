@@ -97,7 +97,9 @@ sealed class FilesScreen : Screen
 - **Going back:** on a pushed screen the hints show `esc Back`, unless something in scope binds Esc. A popped
   screen can be pushed again and keeps its state; its `OnMount` runs again with a new `Lifetime`.
 - **Hints and help** list the bindings in `Keys`. Keys a component handles itself in `HandleKey` (a list's
-  arrows, say) don't appear; add a binding with `showInHints: false` if you want one in the help only.
+  arrows, say) don't appear; add a binding with `showInHints: false` if you want one in the help only. `?` and
+  F1 open help; while a text field has focus, `?` is typed, so the hints show `f1 Help` and leave out other
+  single-character bindings that would be typed too.
 - **Chrome:** the bottom row shows hints for the bindings in scope (an inner `r` hides an outer `r`) and,
   in the room the hints leave, the screen titles. Turn it off with `WithChrome(statusBar: false)`.
 - **Overlays:** `app.Overlays.ConfirmAsync(message)` (Yes is selected first, or No with `yesFirst: false` for a

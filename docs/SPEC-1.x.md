@@ -54,6 +54,7 @@ or add to them:
 | **29. Bar values, paragraph scrolling, checkbox and button states** | A short bar's value drawn above it instead of splitting it; `ScrollState.ScrollsHorizontally` for unwrapped paragraphs; `CheckboxState` and `ButtonState`. | 28 | §23 | 2.1.0 |
 | **30. Padding, selection by key, and wide bar values** | Blocks pad their content a column in from side borders by default; `Rows(items, format, key)` and `Items(items, format, key)` keep a list or table's selection on the same item when the items change (`SelectionState.SelectedKey`, `SelectKey`); bar values wider than their bar go above it, and values never touch or get cut. | 29 | §24 | 2.1.0 |
 | **31. Gaps found building MiniTui Desk apps** | `TextAreaState.Changed`; `App.OnQuitting` and `RequestQuit`, for Ctrl+C, SIGHUP and SIGTERM; `OverlayStack.PromptAsync`; a public `FilterListState` and `Widget.FilterList`; `TextAreaBuilder.Highlight`; toasts that wrap. | 30 | §25 | 2.2.0 |
+| **32. Help while typing** | F1 opens help as well as `?`, so it works while a text field has focus; hints show a key that can fire. | 31 | §26 | 2.3.0 |
 
 Phases 8–11 are input work, so they go first: each depends on Phase 8, and Phase 8 fixes a known bug (a fast
 burst of arrow keys can produce a stray Esc, found in 1.0 QA). Phases 12–15 are independent of each other and
@@ -5441,3 +5442,70 @@ Four PRs, one release (2.2.0):
 2. **31b** (prompt and toasts): §25.4 and §25.7.
 3. **31c** (filter list): §25.5, the palette and select moved onto it.
 4. **31d** (highlighting): §25.6, with a Markdown example in the guides.
+
+
+## 26. Help while typing (Phase 32)
+
+### 26.1 Purpose
+
+`?` is the built-in help key (§9.5), but while the focused component captures text, single printable-character
+bindings are skipped (§9.4), so `?` is typed instead. An app whose focus is always in a text field or a text area
+can't open help: MiniTui Desk's Notes (the list's filter or the editor) found this (#85), and a chat box or a search
+screen would too. The footer says the same wrong thing: a binding's hint shows its first key, so it reads `? Help`
+while `?` types a question mark.
+
+Nothing new in the API, and nothing removed, so this is **2.3.0**.
+
+### 26.2 F1 opens help
+
+- `App.Keys` binds `?,f1` to help. Function keys still reach the global bindings while typing (§9.4), so F1 works
+  everywhere a screen is focused; `?` works as before where it isn't typed.
+- **Shadowing as any binding:** an app that binds F1 itself, on a screen or a component, keeps it, and help is on
+  `?` there.
+- `HelpOverlay` closes on F1 as well as `?`, `q`, Enter and Esc, so the key toggles it.
+- Help lists the binding as `?, f1`.
+
+### 26.3 Hints show a key that can fire
+
+- Each binding's hint shows its first key that can fire now, instead of its first key. While the focused component
+  captures text, a plain character bound by an ancestor or by `App.Keys` can't, so the hint skips it: `? Help`
+  becomes `f1 Help`, and `d,delete` shows `delete`.
+- A binding with no such key is left out while typing (a global `q Quit` would type `q`). The focused component's
+  own bindings fire before it types, so they're shown as before.
+- Without text capture, hints are unchanged.
+- Help and the command palette are unchanged: they list every key, and the palette runs the binding whatever its
+  key.
+
+### 26.4 Tests
+
+- F1 opens and closes help with a text field and with a text area focused, without changing the text; `?` is typed
+  there, and still opens help without text capture.
+- An app's own F1 binding shadows help's, whose hint then shows `?`.
+- Hints while typing: an ancestor's plain-character binding is left out, its second key shown if it has one, a
+  Ctrl binding shown, the focused component's own plain-character binding shown, and `f1 Help`. Without capture,
+  as before.
+
+Manual QA: Notes in MiniTui Desk against a local 2.3.0 package: F1 from the list and from the editor, inside
+`tuidesk` and on its own; the example's screens with `?`.
+
+### 26.5 Migration impact
+
+- **Changed:** F1 opens help where an app doesn't bind it. Hints while typing show `f1 Help` for help and leave out
+  plain-character bindings that would be typed. Help lists `?, f1`.
+
+### 26.6 Out of scope
+
+- A setting for the help keys: an app that wants other keys binds them to `Overlays.ShowHelp` and can shadow F1.
+- Changing which bindings fire while typing.
+
+### 26.7 Open questions (defaults apply if unanswered)
+
+| # | Question | Default |
+|---|---|---|
+| 1 | Which key besides `?`? | **F1**: the help key on Windows, in Midnight Commander and in `tuidesk`, and a function key reaches global bindings while typing. Ctrl+H is Backspace in many terminals, and Ctrl+/ isn't reported by most. |
+| 2 | Hide hints that can't fire while typing, or show them anyway? | **Hide them**: a hint for a key that types a character is wrong. |
+| 3 | Release when? | **2.3.0 straight after**; then Notes moves to it. |
+
+### 26.8 Implementation order
+
+One PR with this spec, then the release.
