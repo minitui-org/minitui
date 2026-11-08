@@ -38,3 +38,5 @@ Planned in [docs/SPEC-1.x.md](docs/SPEC-1.x.md), one phase each.
 Ideas not specced yet, ranked by value in [docs/SPEC-1.x.md](docs/SPEC-1.x.md) §1.1:
 
 Everything on it has shipped (through 1.15.0).
+
+- [ ] Full CommonMark in `Widget.Markdown`: link reference definitions, HTML blocks, and every case in the CommonMark spec, tested against its examples. 2.4 covers a subset plus GitHub's tables and task lists ([docs/SPEC-1.x.md](docs/SPEC-1.x.md) §27.3).

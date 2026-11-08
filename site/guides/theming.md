@@ -48,6 +48,7 @@ Builders take `.Style(...)` (and `HighlightStyle`, `BorderStyle`, …) overrides
 | `ScrollbarTrack`, `ScrollbarThumb` | Scrollbars |
 | `GaugeFilled`, `GaugeEmpty` | Gauges |
 | `Success`, `Warning`, `Error`, `Info` | Messages, toasts and your own status colors |
+| `Heading`, `Code`, `Link` | Headings, code and links in Markdown |
 | `ChartSeries` | Chart datasets and bar series without their own style |
 
 A component reads them from `ctx.Theme`, and code outside one from `Theme.Current`.

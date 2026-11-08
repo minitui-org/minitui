@@ -37,6 +37,8 @@ public static class Widget
     public static StatusBarBuilder StatusBar() => new();
     /// <summary>A list narrowed by typing: a filter line over the rows of a <see cref="FilterListState"/> that match it (1.x spec §25.5).</summary>
     public static FilterListBuilder FilterList(FilterListState state) => new(state);
+    /// <summary>Markdown, formatted (1.x spec §27.3).</summary>
+    public static MarkdownBuilder Markdown(MarkdownState state) => new(state);
     /// <summary>A single-line text input.</summary>
     public static TextFieldBuilder TextField() => new();
 
