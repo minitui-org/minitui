@@ -149,13 +149,25 @@ public sealed class MarkdownState
     /// Handle a key. Without <see cref="BlockCursor"/>, the keys scroll (<see cref="ScrollState.HandleKey"/>). With
     /// it, ↑ ↓ (and k j) move the highlight a block, Shift+↑ ↓ stretch it, PgUp PgDn scroll a page and highlight the
     /// first block in view, and Home End go to the first and last block. Either way, with
-    /// <see cref="ScrollState.Selectable"/> on, Ctrl+A, Esc and copying a mouse selection work as in a paragraph,
-    /// and with a highlight and no mouse selection, Ctrl+C and Ctrl+Insert copy <see cref="HighlightedText"/>.
+    /// <see cref="ScrollState.Selectable"/> on, Ctrl+A, Esc and copying a selection work as in a paragraph, and F7
+    /// shows a caret (<see cref="ScrollState.CaretVisible"/>; at the top of the highlight with the block cursor) that
+    /// the keys move until Esc or F7 hides it. With a highlight and no selection, Ctrl+C and Ctrl+Insert copy
+    /// <see cref="HighlightedText"/>.
     /// </summary>
     /// <returns>True if the key was handled.</returns>
     public bool HandleKey(ConsoleKeyInfo key)
     {
         if (!_blockCursor || _blocks.Count == 0) return Scroll.HandleKey(key);
+
+        // The caret (1.x spec §27.4): F7 shows it at the top of the highlight; while it shows, the keys are its
+        if (Scroll.Selectable && key.Key == ConsoleKey.F7 && key.Modifiers == 0)
+        {
+            if (Scroll.CaretVisible) Scroll.CaretVisible = false;
+            else Scroll.ShowCaretAt(RowsOf(_active)?.First ?? Scroll.Offset);
+            return true;
+        }
+        if (Scroll.CaretVisible && !KeyInput.IsCtrlC(key) && !(key.Key == ConsoleKey.Insert && (key.Modifiers & ConsoleModifiers.Control) != 0))
+            return Scroll.HandleKey(key);
 
         var ctrl = (key.Modifiers & ConsoleModifiers.Control) != 0;
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;

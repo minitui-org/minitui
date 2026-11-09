@@ -257,6 +257,11 @@ everything); typing, pasting or a delete key replaces the selection, and â† / â
   overrides `HasSelection => state.HasSelection` so Ctrl+C reaches it. The message and help dialogs are
   selectable, so an error message can be copied.
 
+  Without a mouse, **F7** shows a caret at the top of the view, as caret browsing does: the arrows, Home, End,
+  PgUp, PgDn and Ctrl+Home Ctrl+End move it instead of scrolling, Shift with them selects, and Esc (after clearing
+  a selection) or F7 hides it. `CaretVisible` shows or hides it from code. The state can't add a hint, so to list
+  the key, bind it: `Keys.Add("f7", "Caret", scroll.ToggleCaret)`.
+
   ```csharp
   sealed class LogView(ScrollState scroll, List<string> log) : Component
   {

@@ -137,6 +137,7 @@ public sealed class ParagraphBuilder
                 WidgetText.DrawLine(buf, text.X, text.Y + i, line, text.Width, style, alignment);
             }
             DrawSelection(buf, text, i, offset + i);
+            DrawCaret(buf, text, i, offset + i);
         }
 
         if (vertical)
@@ -192,6 +193,13 @@ public sealed class ParagraphBuilder
         if (to <= from) return;
         var style = _block?.IsFocused == false ? Theme.Current.SelectionUnfocused : Theme.Current.Selection;
         buf.SetStyle(new Rect(inner.X + from, inner.Y + y, to - from, 1), style);
+    }
+
+    // 1.x spec §27.4: the caret, a cell in the cursor style; at the end of a full row, on its last cell
+    private void DrawCaret(CellBuffer buf, Rect inner, int y, int row)
+    {
+        if (_state?.CaretColumn(row) is not { } column || inner.Width == 0) return;
+        buf.SetStyle(new Rect(inner.X + Math.Clamp(column, 0, inner.Width - 1), inner.Y + y, 1, 1), Theme.Current.Cursor);
     }
 }
 

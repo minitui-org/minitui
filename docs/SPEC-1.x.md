@@ -5527,7 +5527,7 @@ Everything is added and nothing removed, so this is **2.4.0**.
 |---|---|---|
 | **33a** | #91 Wrapping styled text into rows is internal | §27.2 |
 | **33b** | #89 No Markdown widget | §27.3 |
-| **33c** | #90 Paragraph text can only be selected with the mouse | added by its PR |
+| **33c** | #90 Paragraph text can only be selected with the mouse | §27.4 |
 | **33d** | #88 Filter list rows can't be styled, if it stays small; otherwise later | added by its PR |
 
 33b–33d each add their section here with their decisions, asked one at a time.
@@ -5610,3 +5610,43 @@ and the W1 and W2 sweeps.
 
 **Out of scope:** full CommonMark (TODO.md), syntax highlighting in code blocks, following links, images, and a
 maximum width (an app narrows the area).
+
+### 27.4 A caret in selectable text (33c)
+
+**Decisions:**
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | How is the caret turned on? | **F7 toggles it**, as caret browsing does, only where `ScrollState.Selectable` is on. |
+| 2 | Where does it start in Markdown with the block cursor, and what gets the arrows after? | **Default, not asked:** at the start of the highlight's first row; hiding it gives the arrows back to the block cursor. |
+
+**`ScrollState`:**
+- `CaretVisible`: shows the caret at the start of the top row in view (or at the first draw, if nothing is drawn
+  yet); false hides it and clears the selection. Ignored without `Selectable`. `ToggleCaret()` does what F7 does,
+  for an app that binds F7 itself to list it in hints and help: a state can't add a hint.
+- `HandleKey` with `Selectable`: F7 toggles the caret. Esc clears a selection first, then hides the caret.
+- While the caret shows: ← → move it a character (a wide character or an emoji is one step), onto the row
+  before or after at a row's edge; ↑ ↓ a row, PgUp PgDn the view less a row, keeping the column they started
+  from; Home End to the row's start and end; Ctrl+Home Ctrl+End to the text's. Shift with any of them selects
+  from where the caret was; without Shift the selection collapses to the caret. The view scrolls to keep the
+  caret's row in it. j k still scroll.
+- A click moves the caret (the press already starts a selection there). The caret, like a selection, is kept by
+  its place in the text, so it stays on the same character when the rows are laid out again.
+- Ctrl+C, Ctrl+Insert and Ctrl+A work as before.
+
+**Drawing:** the paragraph draws the caret as one cell in `Theme.Cursor`, over the selection; at the end of a row
+as wide as the area, on its last cell. The terminal's cursor isn't moved: the paragraph doesn't know whether it has
+focus.
+
+**`MarkdownState`:** without the block cursor, as a paragraph. With it, F7 shows the caret at the start of the
+highlight's first row, the keys go to the caret while it shows, Ctrl+C copies a selection or else the highlight,
+and Esc or F7 hides it, after which ↑ ↓ move the highlight again.
+
+**Dialogs:** `MessageDialog` and `HelpOverlay` are selectable, so F7 works in them.
+
+**Tests:** F7 only with `Selectable`; the caret at the top of the view; ← → across rows; ↑ ↓ keeping the column;
+Home End and Ctrl+Home Ctrl+End; selecting with Shift, copying, Esc clearing then hiding, F7 hiding; keeping the
+caret's row in view; wide characters; a click; a new width; showing it before the first draw; the last cell of a
+full row; the arrows scrolling without it; and Markdown with and without the block cursor.
+
+**Out of scope:** moving by word (Ctrl+← →), and a caret in unselectable text.

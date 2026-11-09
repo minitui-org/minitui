@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `Widget.Markdown(state)` and `MarkdownState` show Markdown formatted: headings, emphasis, inline code, links, images as `[image: alt]`, lists with check boxes, nested quotes, fenced and indented code, rules, tables in aligned columns, and front matter hidden; anything else is shown as written. The keys scroll, or with `BlockCursor` move a highlighted block (`Highlight`, `HighlightChanged`, `HighlightedSource`, `HighlightedText`, Ctrl+C copies it), and `PlainText` shows the source as written. `Blocks`, `BlockAt(row)` and `RowsOf(block)` map blocks to rows (#89).
 - `Theme.Heading`, `Theme.Code` and `Theme.Link`, set in every built-in theme.
+- A caret in selectable text, for selecting without a mouse: in a paragraph or Markdown whose `ScrollState.Selectable` is on, F7 shows it, the arrows, Home, End, PgUp, PgDn and Ctrl+Home Ctrl+End move it, Shift with them selects, and Esc or F7 hides it. `ScrollState.CaretVisible` and `ToggleCaret()`. The message and help dialogs have it too. In Markdown with the block cursor, it starts at the top of the highlight (#90).
 - `Paragraph.Wrap(text, width, wrap)` returns the rows a paragraph draws, with their styles and alignment, without drawing them, beside `Paragraph.MeasureLines` (#91).
 
 ## [2.3.0] - 2026-11-07

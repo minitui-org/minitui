@@ -43,6 +43,26 @@ public sealed class ScrollState
     /// <summary>True while something is selected.</summary>
     public bool HasSelection => _anchor != _head;
 
+    /// <summary>
+    /// Show a caret in the text, as caret browsing does (1.x spec §27.4): ← → ↑ ↓ Home End PgUp PgDn and
+    /// Ctrl+Home Ctrl+End move it, Shift with them selects, and Esc or F7 hides it. Only with <see cref="Selectable"/>;
+    /// <see cref="HandleKey"/> toggles it on F7. It starts at the top of the view.
+    /// </summary>
+    public bool CaretVisible
+    {
+        get => _caret;
+        set
+        {
+            if (value == _caret || (value && !Selectable)) return;
+            _caret = value;
+            if (value) PlaceCaret(Math.Max(0, Offset));
+            else ClearSelection();
+        }
+    }
+
+    /// <summary>Show the caret if it's hidden, otherwise hide it, as F7 does. For an app that lists F7 in its own keys.</summary>
+    public void ToggleCaret() => CaretVisible = !CaretVisible;
+
     /// <summary>The selected part of each row as it was drawn last, with a line break between rows.</summary>
     public string SelectedText
     {
@@ -72,8 +92,12 @@ public sealed class ScrollState
         Remember();
     }
 
-    /// <summary>Clear the selection.</summary>
-    public void ClearSelection() => _anchor = _head = _anchorAt = _headAt = default;
+    /// <summary>Clear the selection. The caret, if shown, stays where it is.</summary>
+    public void ClearSelection()
+    {
+        if (_caret) (_anchor, _anchorAt) = (_head, _headAt);
+        else _anchor = _head = _anchorAt = _headAt = default;
+    }
 
     /// <summary>Copy the selection to the <see cref="Clipboard"/>.</summary>
     /// <returns>False, doing nothing, without a selection.</returns>
@@ -90,12 +114,14 @@ public sealed class ScrollState
     /// <summary>
     /// Handle ↑ ↓ j k PgUp PgDn Home End; when <see cref="ScrollsHorizontally"/>, also ← and → (unhandled at the
     /// edge), with Home and End going to the first and last column too; when <see cref="Selectable"/>, also Ctrl+C
-    /// and Ctrl+Insert (copy, with a selection), Ctrl+A (select all) and Esc (clear a selection).
+    /// and Ctrl+Insert (copy, with a selection), Ctrl+A (select all), Esc (clear a selection, then hide the caret)
+    /// and F7 (show or hide the caret). While the caret shows, the arrows, Home, End, PgUp and PgDn move it instead.
     /// </summary>
     /// <returns>True if the key was handled.</returns>
     public bool HandleKey(ConsoleKeyInfo key)
     {
         if (Selectable && HandleSelectionKey(key, out var handled)) return handled;
+        if (_caret && HandleCaretKey(key)) return true;
         var page = Math.Max(1, ViewportHeight);
         switch (key.Key)
         {
@@ -221,8 +247,17 @@ public sealed class ScrollState
             };
             _rows.Add(new Row(row, width, start, source, from));
         }
-        if (_anchorAt == _headAt) return;
-        if (_rows.Count == 0 || Math.Max(_anchorAt.Row, _headAt.Row) > _rows[^1].Line) ClearSelection();
+        if (_caret && _caretPending && _rows.Count > 0)
+        {
+            PlaceCaret(Offset);
+            return;
+        }
+        if (_anchorAt == _headAt && !_caret) return;
+        if (_rows.Count == 0 || Math.Max(_anchorAt.Row, _headAt.Row) > _rows[^1].Line)
+        {
+            if (_caret && _rows.Count > 0) PlaceCaret(Offset);
+            else ClearSelection();
+        }
         else (_anchor, _head) = (ToRow(_anchorAt), ToRow(_headAt));
     }
 
@@ -268,6 +303,18 @@ public sealed class ScrollState
         return x1 > x0 ? (x0 + shift, x1 + shift) : default;
     }
 
+    /// <summary>Called by widgets while drawing: the caret's column in row <paramref name="row"/>, from the left of the text area, or null.</summary>
+    internal int? CaretColumn(int row) =>
+        _caret && !_caretPending && row == _head.Row && row < _rows.Count ? _head.Column + StartOf(_rows[row]) : null;
+
+    /// <summary>Show the caret at the start of row <paramref name="row"/> as drawn, for a widget that knows better than the top of the view.</summary>
+    internal void ShowCaretAt(int row)
+    {
+        if (!Selectable) return;
+        _caret = true;
+        PlaceCaret(row);
+    }
+
     /// <summary>Called by widgets while drawing, after <see cref="Fit"/>: where the scrollbar was drawn.</summary>
     internal void TrackScrollbar(Rect bar) => _bar.Track(bar, ContentHeight, ViewportHeight);
 
@@ -305,6 +352,9 @@ public sealed class ScrollState
     private Mark _anchorAt;
     private Mark _headAt;
     private bool _selecting;
+    private bool _caret;
+    private bool _caretPending; // shown before any rows were drawn: placed at the next draw
+    private int? _caretColumn;  // the column ↑ ↓ keep to
 
     // The layout drawn last, the offset asked for and drawn, and the top row's place in the text
     private (int Width, WrapMode Wrap)? _layout;
@@ -355,6 +405,8 @@ public sealed class ScrollState
         if (KeyInput.IsCtrlC(key) || (key.Key == ConsoleKey.Insert && ctrl && !shift)) handled = Copy();
         else if (KeyInput.IsCtrl(key, 'a')) { SelectAll(); handled = true; }
         else if (key.Key == ConsoleKey.Escape && HasSelection) { ClearSelection(); handled = true; }
+        else if (key.Key == ConsoleKey.Escape && _caret) { CaretVisible = false; handled = true; }
+        else if (key.Key == ConsoleKey.F7 && key.Modifiers == 0) { ToggleCaret(); handled = true; }
         else return handled = false;
         return true;
     }
@@ -451,6 +503,79 @@ public sealed class ScrollState
             yield return (cluster, column, width);
             column += width;
         }
+    }
+
+    // The caret at the start of a row, nothing selected; before any rows are drawn, at the next draw
+    private void PlaceCaret(int row)
+    {
+        _caretColumn = null;
+        if (_rows.Count == 0)
+        {
+            _caretPending = true;
+            return;
+        }
+        _caretPending = false;
+        _anchor = _head = new Mark(Math.Clamp(row, 0, _rows.Count - 1), 0);
+        Remember();
+    }
+
+    private bool HandleCaretKey(ConsoleKeyInfo key)
+    {
+        if (_caretPending || _rows.Count == 0) return key.Key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow or ConsoleKey.UpArrow
+            or ConsoleKey.DownArrow or ConsoleKey.Home or ConsoleKey.End or ConsoleKey.PageUp or ConsoleKey.PageDown;
+        var ctrl = (key.Modifiers & ConsoleModifiers.Control) != 0;
+        var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
+        if ((key.Modifiers & ConsoleModifiers.Alt) != 0) return false;
+        var head = _head;
+        var page = Math.Max(1, ViewportHeight - 1);
+        var keepColumn = false;
+        switch (key.Key)
+        {
+            case ConsoleKey.LeftArrow when !ctrl: head = Step(head, -1); break;
+            case ConsoleKey.RightArrow when !ctrl: head = Step(head, 1); break;
+            case ConsoleKey.UpArrow when !ctrl: head = Vertical(head, -1); keepColumn = true; break;
+            case ConsoleKey.DownArrow when !ctrl: head = Vertical(head, 1); keepColumn = true; break;
+            case ConsoleKey.PageUp when !ctrl: head = Vertical(head, -page); keepColumn = true; break;
+            case ConsoleKey.PageDown when !ctrl: head = Vertical(head, page); keepColumn = true; break;
+            case ConsoleKey.Home: head = ctrl ? new Mark(0, 0) : head with { Column = 0 }; break;
+            case ConsoleKey.End: head = ctrl ? new Mark(_rows.Count - 1, _rows[^1].Width) : head with { Column = _rows[head.Row].Width }; break;
+            default: return false;
+        }
+        if (!keepColumn) _caretColumn = null;
+        _head = head;
+        if (!shift) _anchor = _head;
+        Remember();
+        // Keep the caret's row in view
+        if (_head.Row < Offset) Offset = _head.Row;
+        else if (ViewportHeight > 0 && _head.Row >= Offset + ViewportHeight) Offset = _head.Row - ViewportHeight + 1;
+        return true;
+    }
+
+    // A character left or right, onto the row before or after at an edge
+    private Mark Step(Mark at, int by)
+    {
+        var clusters = Clusters(_rows[at.Row].Text).ToList();
+        if (by < 0)
+        {
+            if (at.Column > 0) return at with { Column = clusters.Last(c => c.Column < at.Column).Column };
+            return at.Row > 0 ? new Mark(at.Row - 1, _rows[at.Row - 1].Width) : at;
+        }
+        if (clusters.FirstOrDefault(c => c.Column >= at.Column) is { Cluster: not null } next) return at with { Column = next.Column + next.Width };
+        return at.Row + 1 < _rows.Count ? new Mark(at.Row + 1, 0) : at;
+    }
+
+    // Rows up or down, at the column it was in before moving up or down, or the nearest boundary before it
+    private Mark Vertical(Mark at, int rows)
+    {
+        _caretColumn ??= at.Column;
+        var row = Math.Clamp(at.Row + rows, 0, _rows.Count - 1);
+        var column = 0;
+        foreach (var (_, start, width) in Clusters(_rows[row].Text))
+        {
+            if (start + width > _caretColumn) break;
+            column = start + width;
+        }
+        return new Mark(row, column);
     }
 
     private int MaxOffset => Math.Max(0, ContentHeight - ViewportHeight);
