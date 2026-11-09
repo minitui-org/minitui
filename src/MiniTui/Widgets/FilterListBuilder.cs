@@ -45,11 +45,14 @@ public sealed class FilterListBuilder
         if (inner.IsEmpty)
         {
             _state.ClearLayout();
+            _state.LayoutFilter(default);
             return;
         }
 
+        // The cursor shows only while keys go to the filter line (1.x spec §28)
         var field = new Rect(inner.X + 1, inner.Y, Math.Max(0, inner.Width - 2), 1);
-        TextFieldRenderer.Draw(buf, field, _state.Filter, _focused, theme.Text, _placeholder);
+        _state.LayoutFilter(field);
+        TextFieldRenderer.Draw(buf, field, _state.Filter, _focused && _state.Filtering, theme.Text, _placeholder);
         if (inner.Height < 2)
         {
             _state.ClearLayout();
