@@ -8,7 +8,20 @@ namespace MiniTui;
 /// <param name="Detail">Muted text shown after the label, not matched.</param>
 /// <param name="Hint">Muted text drawn right-aligned, not matched, such as a key or a date.</param>
 /// <param name="Key">What identifies the row, compared with <see cref="object.Equals(object?)"/>; without one, the label does.</param>
-public readonly record struct FilterRow(string Label, string? Detail = null, string? Hint = null, object? Key = null);
+public readonly record struct FilterRow(string Label, string? Detail = null, string? Hint = null, object? Key = null)
+{
+    /// <summary>
+    /// Patched over the label's <see cref="Theme.Text"/>, such as <see cref="Theme.TextMuted"/> for a done or disabled
+    /// row. The selection and the matched characters are drawn over it.
+    /// </summary>
+    public Style? Style { get; init; }
+
+    /// <summary>
+    /// Patched over the hint's <see cref="Theme.TextMuted"/>, such as <see cref="Theme.Error"/> for an overdue date. The
+    /// selection is drawn over it.
+    /// </summary>
+    public Style? HintStyle { get; init; }
+}
 
 /// <summary>
 /// A list narrowed by typing (1.x spec §25.5): a filter line over the rows that fuzzy-match it (<see cref="Fuzzy.Match"/>),

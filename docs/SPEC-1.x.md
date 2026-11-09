@@ -5290,7 +5290,12 @@ state and a widget, for use in a screen as well as an overlay.
 
 ```csharp
 /// A row: the label the filter matches, muted text after it, a right-aligned hint, and a key that identifies it.
-public readonly record struct FilterRow(string Label, string? Detail = null, string? Hint = null, object? Key = null);
+public readonly record struct FilterRow(string Label, string? Detail = null, string? Hint = null, object? Key = null)
+{
+    /// Patched over the label and the hint (2.4, §27.5).
+    public Style? Style { get; init; }
+    public Style? HintStyle { get; init; }
+}
 
 public sealed class FilterListState
 {
@@ -5528,7 +5533,7 @@ Everything is added and nothing removed, so this is **2.4.0**.
 | **33a** | #91 Wrapping styled text into rows is internal | §27.2 |
 | **33b** | #89 No Markdown widget | §27.3 |
 | **33c** | #90 Paragraph text can only be selected with the mouse | §27.4 |
-| **33d** | #88 Filter list rows can't be styled, if it stays small; otherwise later | added by its PR |
+| **33d** | #88 Filter list rows can't be styled | §27.5 |
 
 33b–33d each add their section here with their decisions, asked one at a time.
 
@@ -5650,3 +5655,23 @@ caret's row in view; wide characters; a click; a new width; showing it before th
 full row; the arrows scrolling without it; and Markdown with and without the block cursor.
 
 **Out of scope:** moving by word (Ctrl+← →), and a caret in unselectable text.
+
+### 27.5 Styled filter list rows (33d)
+
+**Decisions:**
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Positional parameters, as #88 sketched, or properties? | **Default, not asked: init properties.** New positional parameters would change `FilterRow`'s constructor and `Deconstruct`, a breaking change in a minor release; `new FilterRow("Milk") { Style = theme.TextMuted }` reads as well. |
+
+**`FilterRow`:**
+- `Style`, patched over the label's `Theme.Text`: a done task muted, a disabled command, a failed item.
+- `HintStyle`, patched over the hint's `Theme.TextMuted`: an overdue date in `Theme.Error`.
+- Both are patches, so a style that only sets italic keeps the color under it. The detail stays muted.
+- The selection is drawn over both, and the matched characters over the label, as on any row. They're part of the
+  row's equality, as a record's members are; `SetRows` keeps the selection by `Key` as before.
+
+**Tests:** a row's label and hint styles, the patch keeping what it doesn't set, the detail staying muted, a row
+without styles drawn as before, and the selection and the matched characters drawn over a row's style.
+
+**Out of scope:** a style for the detail, and styling parts of a label.
