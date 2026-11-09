@@ -2,7 +2,8 @@ namespace MiniTui;
 
 /// <summary>
 /// Draws a <see cref="FilterListState"/> (1.x spec §25.5): the filter line in the first row, a divider, and the
-/// matching rows under it, the matched characters in bold, details and hints muted, and a scrollbar when they don't
+/// matching rows under it, the matched characters in bold, details and hints muted (each row can patch its label's
+/// and its hint's styles), and a scrollbar when they don't
 /// all fit.
 /// </summary>
 public sealed class FilterListBuilder
@@ -94,12 +95,12 @@ public sealed class FilterListBuilder
         var hint = row.Hint is { Length: > 0 } h ? Sanitizer.SingleLine(h) : "";
         var hintWidth = Math.Min(UnicodeWidth.Of(hint), Math.Max(0, width - 2));
         var available = width - 2 - (hintWidth > 0 ? hintWidth + 2 : 0);
-        var labelWidth = WidgetText.DrawString(buf, x + 1, y, label, Math.Max(0, available), theme.Text);
+        var labelWidth = WidgetText.DrawString(buf, x + 1, y, label, Math.Max(0, available), row.Style is { } style ? theme.Text.Patch(style) : theme.Text);
 
         var detail = row.Detail is { Length: > 0 } d ? Sanitizer.SingleLine(d) : "";
         var detailWidth = available - labelWidth - 2;
         if (detail.Length > 0 && detailWidth > 0) WidgetText.DrawString(buf, x + 1 + labelWidth + 2, y, detail, detailWidth, muted);
-        if (hintWidth > 0) WidgetText.DrawString(buf, x + width - 1 - hintWidth, y, hint, hintWidth, muted);
+        if (hintWidth > 0) WidgetText.DrawString(buf, x + width - 1 - hintWidth, y, hint, hintWidth, row.HintStyle is { } hintStyle ? muted.Patch(hintStyle) : muted);
 
         var selected = index == _state.SelectedIndex;
         if (selected) buf.SetStyle(new Rect(x, y, width, 1), selection);

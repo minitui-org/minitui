@@ -255,4 +255,40 @@ public sealed class FilterListTests
         FilterMenu.Draw(new FilterListState(Notes), palette, palette.Area, " Commands ", null);
         Assert.False(palette.Get(0, 0).Modifiers.HasFlag(Modifiers.Bold));
     }
+
+    [Fact]
+    public void A_rows_styles_are_patched_over_its_label_and_hint()
+    {
+        var theme = Theme.Current;
+        FilterRow[] rows =
+        [
+            new("Shopping", Hint: "10:00"),
+            new("Work plan", Detail: "draft", Hint: "Mar 3") { Style = new Style(Color.Green), HintStyle = theme.Error },
+            new("Holiday", Hint: "Jun 1") { HintStyle = new Style(Add: Modifiers.Italic) },
+        ];
+        var buf = new CellBuffer(30, 7);
+        Draw(new FilterListState(rows), into: buf);
+        Assert.Equal(" Work plan  draft       Mar 3", buf.ToLines()[3].TrimEnd());
+
+        Assert.Equal(theme.Text.Fg ?? Color.Reset, buf.Get(1, 4).Fg);                 // no style: as before
+        Assert.Equal(Color.Green, buf.Get(1, 3).Fg);                   // the label
+        Assert.Equal(theme.TextMuted.Fg, buf.Get(12, 3).Fg);           // the detail stays muted
+        Assert.Equal(theme.Error.Fg, buf.Get(24, 3).Fg);               // the hint
+        Assert.Equal(theme.TextMuted.Fg, buf.Get(24, 4).Fg);           // a patch keeps what it doesn't set
+        Assert.True(buf.Get(24, 4).Modifiers.HasFlag(Modifiers.Italic));
+    }
+
+    [Fact]
+    public void The_selection_and_the_matched_characters_are_drawn_over_a_rows_style()
+    {
+        FilterRow[] rows = [new("Work plan") { Style = new Style(Color.Red) }, new("Holiday") { Style = new Style(Color.Red) }];
+        var state = new FilterListState(rows, "o");
+        var buf = new CellBuffer(30, 7);
+        Draw(state, into: buf);
+        Assert.Equal(Theme.Current.Selection.Bg, buf.Get(1, 2).Bg);
+        Assert.True(buf.Get(2, 2).Modifiers.HasFlag(Modifiers.Bold));  // the matched "o"
+        Assert.Equal(Theme.Current.Selection.Fg, buf.Get(2, 2).Fg);
+        Assert.Equal(Theme.Current.Title.Fg, buf.Get(2, 3).Fg);       // a match on the row not selected
+        Assert.Equal(Color.Red, buf.Get(1, 3).Fg);                     // and the rest of it keeps the style
+    }
 }

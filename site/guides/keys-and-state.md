@@ -116,6 +116,17 @@ sealed class NoteList(Func<IEnumerable<Note>> notes) : Component
 }
 ```
 
+A row's `Style` and `HintStyle` are patched over its label and hint, so color can say what text otherwise would. The
+selection and the matched characters are drawn over them:
+
+```csharp
+new FilterRow(task.Title, Hint: task.Due.ToString("MMM d"), Key: task.Id)
+{
+    Style = task.Done ? Theme.Current.TextMuted : null,
+    HintStyle = task.Overdue ? Theme.Current.Error : null,
+}
+```
+
 ## Forms
 
 A form is a screen with a component per field in its `Focus`, so Tab and Shift+Tab move between them. There's no

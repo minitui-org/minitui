@@ -61,3 +61,7 @@ static MiniTui.Widget.Markdown(MiniTui.MarkdownState! state) -> MiniTui.Markdown
 MiniTui.ScrollState.CaretVisible.get -> bool
 MiniTui.ScrollState.CaretVisible.set -> void
 MiniTui.ScrollState.ToggleCaret() -> void
+MiniTui.FilterRow.HintStyle.get -> MiniTui.Style?
+MiniTui.FilterRow.HintStyle.init -> void
+MiniTui.FilterRow.Style.get -> MiniTui.Style?
+MiniTui.FilterRow.Style.init -> void
