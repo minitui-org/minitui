@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-11-08
+
+MiniTui 2.4: Markdown. `Widget.Markdown` shows Markdown formatted, F7 shows a caret for selecting text without a mouse, `Paragraph.Wrap` returns a paragraph's rows, and filter list rows can be styled.
+
 ### Added
 - `Widget.Markdown(state)` and `MarkdownState` show Markdown formatted: headings, emphasis, inline code, links, images as `[image: alt]`, lists with check boxes, nested quotes, fenced and indented code, rules, tables in aligned columns, and front matter hidden; anything else is shown as written. The keys scroll, or with `BlockCursor` move a highlighted block (`Highlight`, `HighlightChanged`, `HighlightedSource`, `HighlightedText`, Ctrl+C copies it), and `PlainText` shows the source as written. `Blocks`, `BlockAt(row)` and `RowsOf(block)` map blocks to rows (#89).
 - `Theme.Heading`, `Theme.Code` and `Theme.Link`, set in every built-in theme.
