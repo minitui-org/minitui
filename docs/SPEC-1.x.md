@@ -5675,3 +5675,59 @@ full row; the arrows scrolling without it; and Markdown with and without the blo
 without styles drawn as before, and the selection and the matched characters drawn over a row's style.
 
 **Out of scope:** a style for the detail, and styling parts of a label.
+
+
+## 28. A filter list where the list has the keys (Phase 34)
+
+### 28.1 Purpose
+
+A filter list's filter line has the keys all the time: every letter typed filters. That suits a launcher or the
+palette, opened to find one thing by name. It doesn't suit a list a screen lives on, where people who navigate with
+`j` and `k` expect them to move, expect `/` to start a filter, and want plain letters free for the app's own
+commands. Using MiniTui Desk's Notes, Tasks and Reader showed it: `j` in their lists went into the filter.
+
+So a filter list can give the list the keys, with `/` to filter. It's off by default and nothing is removed, so this
+is **2.5.0**.
+
+**Decisions:**
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Ctrl+J / Ctrl+K beside type-to-filter, vim keys with `/` to filter, or neither? | **Asked: the list has the keys, and `/` goes to the filter line.** The problem is the filter line having focus all the time. Ctrl+J is also Enter in terminals without the kitty keyboard protocol. |
+| 2 | On by default? | **Default, not asked: off.** The palette, the menus and every existing list keep type-to-filter, so nothing changes for an app that doesn't ask. |
+| 3 | A configurable key? | **Default, not asked: `/` only.** It's the key vim, less, k9s and lazygit use. A caller that wants another sets `Filtering` from its own binding. |
+
+### 28.2 `FilterListState.TypeToFilter` and `Filtering`
+
+- `TypeToFilter`, true by default. Setting it gives the keys to the list (`Filtering` false).
+- `Filtering`: whether keys go to the filter line. Always true with `TypeToFilter`, where setting it does nothing.
+  Otherwise false until `/`, a press on the filter line, or the caller sets it.
+
+**While the list has the keys** (`TypeToFilter` off, not filtering):
+- `j` and `k` move as ↓ and ↑ do, wrapping with `Wraps`. ↑ ↓ PgUp PgDn and Ctrl+Home Ctrl+End work as always, and
+  Home and End go to the first and last match, since there's no cursor for them to move.
+- `/` starts filtering.
+- Esc clears a filter that was kept, and is the caller's when there's none. Enter and Tab are the caller's, as always.
+- Every other key is the caller's (`HandleKey` returns false), so a screen can bind plain letters. Keys with Ctrl or
+  Alt are never `j`, `k` or `/`.
+- A paste does nothing (`HandlePaste` returns false). The wheel, hover and clicks on rows work as always.
+
+**While filtering** (after `/`):
+- Keys go to the filter line as with `TypeToFilter`, and the arrows and paging keys still move the selection.
+- Enter keeps the filter and gives the keys back to the list, so `j` and `k` move among the matches.
+- Esc clears the filter and gives the keys back. With text selected in the filter line it first drops that
+  selection, as before.
+- Tab is the caller's, and filtering stays on.
+
+**Drawing:** the filter line shows its cursor only while `Filtering`, and the list is focused. The placeholder is the
+caller's to word, such as `/ to filter`.
+
+**A component's `CapturesText`** should follow it, `=> State.Filtering`, so `?` opens help and plain-letter bindings
+fire while the list has the keys (§26).
+
+**Tests:** `j` `k` and their wrapping, letters and Ctrl+J returned to the caller, Home and End, `/` then typing,
+Enter keeping the filter, Esc clearing it from either side, the arrows while filtering, the cursor shown only while
+filtering, a press on the filter line, a paste before and after, and `TypeToFilter` on behaving as before with
+`Filtering` always true.
+
+**Out of scope:** `g` and `G`, counts (`5j`), `n` and `N`, and turning it on for the palette or the menus.

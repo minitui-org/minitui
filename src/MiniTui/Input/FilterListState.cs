@@ -39,6 +39,9 @@ public sealed class FilterListState
     private int _offset;
     private int _viewport;
     private Rect _rowsArea;
+    private Rect _filterArea;
+    private bool _typeToFilter = true;
+    private bool _filtering;
 
     /// <summary>Create a list over <paramref name="rows"/>, filtered by <paramref name="filter"/>, with its cursor at the end.</summary>
     public FilterListState(IEnumerable<FilterRow>? rows = null, string filter = "")
@@ -68,6 +71,32 @@ public sealed class FilterListState
 
     /// <summary>↑ at the first match goes to the last, and ↓ at the last to the first. Off by default.</summary>
     public bool Wraps { get; set; }
+
+    /// <summary>
+    /// Whether typing filters, which is the default. When off (1.x spec §28), the list has the keys: j and k move as ↑
+    /// and ↓ do, Home and End go to the first and last match, and letters are left to the caller, until <c>/</c> or a
+    /// click on the filter line starts <see cref="Filtering"/>. Enter then keeps the filter and Esc clears it, and
+    /// either gives the keys back to the list.
+    /// </summary>
+    public bool TypeToFilter
+    {
+        get => _typeToFilter;
+        set
+        {
+            _typeToFilter = value;
+            _filtering = false;
+        }
+    }
+
+    /// <summary>
+    /// Whether keys go to the filter line: always while <see cref="TypeToFilter"/> is on, and otherwise from <c>/</c>
+    /// until Enter or Esc. Setting it does nothing while <see cref="TypeToFilter"/> is on.
+    /// </summary>
+    public bool Filtering
+    {
+        get => _typeToFilter || _filtering;
+        set => _filtering = value && !_typeToFilter;
+    }
 
     /// <summary>Raised when the selection moves to another row: by a key, the mouse, filtering, <see cref="Select"/> or <see cref="SetRows"/>.</summary>
     public event EventHandler? SelectionChanged;
@@ -105,7 +134,7 @@ public sealed class FilterListState
     /// <summary>
     /// ↑ ↓ PgUp PgDn and Ctrl+Home Ctrl+End move the selection; Esc clears a filter that isn't empty; any other key
     /// goes to the filter line (Home and End move its cursor). Enter, Tab, and Esc with an empty filter are left to the
-    /// caller.
+    /// caller. With <see cref="TypeToFilter"/> off, see there.
     /// </summary>
     /// <returns>True if the key was used.</returns>
     public bool HandleKey(ConsoleKeyInfo key)
@@ -119,6 +148,19 @@ public sealed class FilterListState
             case ConsoleKey.PageDown: Page(1); return true;
             case ConsoleKey.Home when ctrl: MoveTo(_matches.Count > 0 ? 0 : -1); return true;
             case ConsoleKey.End when ctrl: MoveTo(_matches.Count - 1); return true;
+        }
+        if (!Filtering) return HandleListKey(key);
+
+        switch (key.Key)
+        {
+            // Asked for with /: Enter keeps the filter and Esc clears it, and the list has the keys again
+            case ConsoleKey.Enter when _filtering:
+                _filtering = false;
+                return true;
+            case ConsoleKey.Escape when _filtering && !Filter.HasSelection:
+                _filtering = false;
+                Filter.Clear();
+                return true;
             case ConsoleKey.Enter or ConsoleKey.Tab: return false;
             case ConsoleKey.Escape when Filter.Text.Length > 0 && !Filter.HasSelection:
                 Filter.Clear();
@@ -128,8 +170,31 @@ public sealed class FilterListState
         return Filter.HandleKey(key);
     }
 
-    /// <summary>Paste into the filter line, filtering again.</summary>
-    public bool HandlePaste(string text) => Filter.Paste(text);
+    // The keys while the list has them (TypeToFilter off, and not filtering)
+    private bool HandleListKey(ConsoleKeyInfo key)
+    {
+        switch (key.Key)
+        {
+            case ConsoleKey.Home: MoveTo(_matches.Count > 0 ? 0 : -1); return true;
+            case ConsoleKey.End: MoveTo(_matches.Count - 1); return true;
+            case ConsoleKey.Escape when Filter.Text.Length > 0:
+                Filter.Clear();
+                return true;
+        }
+        if (KeyInput.HasCommandModifier(key)) return false;
+        switch (key.KeyChar)
+        {
+            case 'k': Move(-1, Wraps); return true;
+            case 'j': Move(1, Wraps); return true;
+            case '/':
+                _filtering = true;
+                return true;
+            default: return false;
+        }
+    }
+
+    /// <summary>Paste into the filter line, filtering again. Nothing is pasted while the list has the keys (<see cref="Filtering"/> is false).</summary>
+    public bool HandlePaste(string text) => Filtering && Filter.Paste(text);
 
     /// <summary>
     /// The wheel moves the selection, the pointer moving over a row selects it, a click on a row selects it (a
@@ -164,6 +229,12 @@ public sealed class FilterListState
         {
             var index = _offset + (mouse.Y - _rowsArea.Y);
             return index < _matches.Count ? _matches[index].Row : null;
+        }
+        if (!Filtering)
+        {
+            // A press on the filter line starts filtering, as / does
+            if (mouse.Action != MouseAction.Press || !_filterArea.Contains(mouse.X, mouse.Y)) return null;
+            _filtering = true;
         }
         Filter.HandleMouse(mouse);
         return null;
@@ -204,6 +275,9 @@ public sealed class FilterListState
     }
 
     internal void ClearLayout() => _rowsArea = default;
+
+    /// <summary>Where the filter line was drawn, for a click that starts filtering.</summary>
+    internal void LayoutFilter(Rect field) => _filterArea = field;
 
     private void SetRowsCore(IEnumerable<FilterRow> rows)
     {

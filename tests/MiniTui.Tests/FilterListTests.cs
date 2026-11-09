@@ -291,4 +291,166 @@ public sealed class FilterListTests
         Assert.Equal(Theme.Current.Title.Fg, buf.Get(2, 3).Fg);       // a match on the row not selected
         Assert.Equal(Color.Red, buf.Get(1, 3).Fg);                     // and the rest of it keeps the style
     }
+
+    // ---- The list has the keys (1.x spec §28) ----
+
+    private static bool Key(FilterListState state, string key) => state.HandleKey(KeyBinding.Parse(key).ToKeyInfo());
+
+    private static bool Char(FilterListState state, char c) => state.HandleKey(new ConsoleKeyInfo(c, 0, false, false, false));
+
+    // Where the filter line's cursor is drawn: a reversed cell on its row
+    private static bool CursorShown(FilterListState state)
+    {
+        var buf = new CellBuffer(30, 7);
+        Draw(state, into: buf);
+        return Enumerable.Range(0, buf.Width).Any(x => (buf.Get(x, 0).Modifiers & Modifiers.Reversed) != 0);
+    }
+
+    [Fact]
+    public void With_type_to_filter_off_j_and_k_move_and_letters_are_left_to_the_caller()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Assert.False(state.Filtering);
+        Assert.True(Char(state, 'j'));
+        Assert.Equal(1, state.Selected);
+        Assert.True(Char(state, 'j'));
+        Assert.True(Char(state, 'j')); // at the end it stays
+        Assert.Equal(2, state.Selected);
+        Assert.True(Char(state, 'k'));
+        Assert.Equal(1, state.Selected);
+        Press(state, "down", "up", "up");
+        Assert.Equal(0, state.Selected);
+
+        Assert.False(Char(state, 'w'));
+        Assert.False(Char(state, 'h'));
+        Assert.False(Key(state, "ctrl+j"));
+        Assert.Equal("", state.Filter.Text);
+        Assert.Equal([0, 1, 2], state.Matches);
+
+        Assert.True(Key(state, "end"));
+        Assert.Equal(2, state.Selected);
+        Assert.True(Key(state, "home"));
+        Assert.Equal(0, state.Selected);
+        Assert.False(Key(state, "enter"));
+        Assert.False(Key(state, "esc"));
+    }
+
+    [Fact]
+    public void J_and_k_wrap_when_the_list_does()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false, Wraps = true };
+        Char(state, 'k');
+        Assert.Equal(2, state.Selected);
+        Char(state, 'j');
+        Assert.Equal(0, state.Selected);
+    }
+
+    [Fact]
+    public void Slash_starts_filtering_and_enter_keeps_the_filter_for_the_list()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Assert.True(Char(state, '/'));
+        Assert.True(state.Filtering);
+        Assert.Equal("", state.Filter.Text);
+        Type(state, "ok"); // letters filter now, j and k among them
+        Assert.Equal("ok", state.Filter.Text);
+        Type(state, "j");
+        Assert.Equal("okj", state.Filter.Text);
+        Press(state, "backspace", "backspace", "backspace");
+        Type(state, "o");
+        Assert.Equal(3, state.Matches.Count);
+
+        Assert.True(Key(state, "enter"));
+        Assert.False(state.Filtering);
+        Assert.Equal("o", state.Filter.Text);
+        var first = state.Selected;
+        Assert.True(Char(state, 'j'));
+        Assert.NotEqual(first, state.Selected);
+        Assert.Equal("o", state.Filter.Text);
+        Assert.False(Key(state, "enter")); // and Enter is the caller's again
+
+        // Esc from the list clears a filter that was kept, and then is the caller's
+        Assert.True(Key(state, "esc"));
+        Assert.Equal("", state.Filter.Text);
+        Assert.False(Key(state, "esc"));
+    }
+
+    [Fact]
+    public void Esc_while_filtering_clears_the_filter_and_gives_the_keys_back()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Char(state, '/');
+        Type(state, "hol");
+        Assert.Equal([2], state.Matches);
+        Assert.True(Key(state, "esc"));
+        Assert.False(state.Filtering);
+        Assert.Equal("", state.Filter.Text);
+        Assert.Equal([0, 1, 2], state.Matches);
+
+        // With nothing typed too
+        Char(state, '/');
+        Assert.True(Key(state, "esc"));
+        Assert.False(state.Filtering);
+    }
+
+    [Fact]
+    public void The_arrows_still_move_while_filtering()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Char(state, '/');
+        Press(state, "down");
+        Assert.Equal(1, state.Selected);
+        Assert.True(state.Filtering);
+    }
+
+    [Fact]
+    public void The_filter_lines_cursor_shows_only_while_filtering()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Assert.False(CursorShown(state));
+        Char(state, '/');
+        Assert.True(CursorShown(state));
+        Key(state, "enter");
+        Assert.False(CursorShown(state));
+        Assert.True(CursorShown(new FilterListState(Notes)));
+    }
+
+    [Fact]
+    public void A_press_on_the_filter_line_starts_filtering_and_a_paste_waits_for_it()
+    {
+        var state = new FilterListState(Notes) { TypeToFilter = false };
+        Draw(state);
+        Assert.False(state.HandlePaste("hol"));
+        Assert.Equal("", state.Filter.Text);
+
+        state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 3, 2)); // a row
+        Assert.False(state.Filtering);
+        state.HandleMouse(new MouseEvent(MouseAction.Press, MouseButton.Left, 3, 0));
+        Assert.True(state.Filtering);
+        Assert.True(state.HandlePaste("hol"));
+        Assert.Equal([2], state.Matches);
+    }
+
+    [Fact]
+    public void Filtering_is_always_on_with_type_to_filter_and_can_be_set_without_it()
+    {
+        var state = new FilterListState(Notes);
+        Assert.True(state.TypeToFilter);
+        Assert.True(state.Filtering);
+        state.Filtering = false;
+        Assert.True(state.Filtering);
+        Type(state, "/j");
+        Assert.Equal("/j", state.Filter.Text); // typed, as before
+        Assert.False(Key(state, "enter"));
+
+        state.Filter.Clear();
+        state.TypeToFilter = false;
+        Assert.False(state.Filtering);
+        state.Filtering = true;
+        Assert.True(state.Filtering);
+        Type(state, "hol");
+        Assert.Equal([2], state.Matches);
+        state.TypeToFilter = false; // setting it starts from the list again
+        Assert.False(state.Filtering);
+    }
 }
