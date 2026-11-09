@@ -1,5 +1,1 @@
 #nullable enable
-MiniTui.FilterListState.Filtering.get -> bool
-MiniTui.FilterListState.Filtering.set -> void
-MiniTui.FilterListState.TypeToFilter.get -> bool
-MiniTui.FilterListState.TypeToFilter.set -> void
