@@ -391,6 +391,8 @@ MiniTui.FilterListState
 MiniTui.FilterListState.Activated -> System.EventHandler?
 MiniTui.FilterListState.Filter.get -> MiniTui.TextFieldState!
 MiniTui.FilterListState.FilterListState(System.Collections.Generic.IEnumerable<MiniTui.FilterRow>? rows = null, string! filter = "") -> void
+MiniTui.FilterListState.Filtering.get -> bool
+MiniTui.FilterListState.Filtering.set -> void
 MiniTui.FilterListState.HandleKey(System.ConsoleKeyInfo key) -> bool
 MiniTui.FilterListState.HandleMouse(MiniTui.MouseEvent! mouse) -> bool
 MiniTui.FilterListState.HandlePaste(string! text) -> bool
@@ -400,6 +402,8 @@ MiniTui.FilterListState.Select(int row) -> void
 MiniTui.FilterListState.Selected.get -> int?
 MiniTui.FilterListState.SelectionChanged -> System.EventHandler?
 MiniTui.FilterListState.SetRows(System.Collections.Generic.IEnumerable<MiniTui.FilterRow>! rows) -> void
+MiniTui.FilterListState.TypeToFilter.get -> bool
+MiniTui.FilterListState.TypeToFilter.set -> void
 MiniTui.FilterListState.Wraps.get -> bool
 MiniTui.FilterListState.Wraps.set -> void
 MiniTui.FilterRow

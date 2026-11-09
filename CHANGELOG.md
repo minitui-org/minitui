@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-11-09
+
+MiniTui 2.5: a filter list can give the list the keys, so `j` and `k` move and `/` starts the filter.
+
 ### Added
 - `FilterListState.TypeToFilter`, on by default. Turned off, the list has the keys: `j` and `k` move as ↓ and ↑ do, Home and End go to the first and last match, and other letters are left to the caller, so a screen can bind them. `/` or a press on the filter line starts filtering (`Filtering`); Enter then keeps the filter and Esc clears it, and either gives the keys back to the list. The filter line shows its cursor only while filtering.
 
